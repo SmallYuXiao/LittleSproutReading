@@ -27,6 +27,9 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var subtitleError: String?
     @Published var isVideoReady = false  // 视频是否就绪
     
+    // 历史记录
+    let historyManager = HistoryManager()
+    
     private var timeObserver: Any?
     private var cancellables = Set<AnyCancellable>()
 
@@ -118,6 +121,15 @@ class VideoPlayerViewModel: ObservableObject {
                     self.subtitles = mergedSubtitles
                     print("✅ 加载了 \(mergedSubtitles.count) 条双语字幕")
                     self.isLoadingSubtitles = false
+                    
+                    // 保存到历史记录
+                    if let title = self.videoTitle, let video = self.currentVideo {
+                        let history = VideoHistory(
+                            videoID: video.youtubeVideoID,
+                            title: title
+                        )
+                        self.historyManager.addHistory(history)
+                    }
                 }
                 
                 if mergedSubtitles.isEmpty {

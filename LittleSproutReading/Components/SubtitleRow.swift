@@ -47,21 +47,28 @@ struct SubtitleRow: View {
                         ZStack(alignment: .leading) {
                             // 中文文本
                             Text(subtitle.chineseText)
-                                .font(.caption)
-                                .foregroundColor(.gray)
+                                .font(.subheadline)
+                                .foregroundColor(.gray.opacity(0.8))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .multilineTextAlignment(.leading)
+                                .padding(.vertical, 4)
                             
-                            // 遮罩层（未点击时显示）
+                            // 磨砂遮罩层（未点击时显示）
                             if !showChinese {
-                                Rectangle()
-                                    .fill(Color.gray)
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(.ultraThinMaterial)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                                    )
+                                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
                             }
                         }
-                        .frame(height: 30)
-                        .cornerRadius(4)
+                        .fixedSize(horizontal: false, vertical: true)
                         .onTapGesture {
-                            showChinese.toggle()
+                            withAnimation(.spring()) {
+                                showChinese.toggle()
+                            }
                         }
                     }
                 }
@@ -69,10 +76,28 @@ struct SubtitleRow: View {
             }
         }
         .padding(.horizontal, 16)
+        .padding(.vertical, 8)
         .background(isCurrentSubtitle ? Color.green.opacity(0.1) : Color.clear)
+        .overlay(
+            DashedLine()
+                .stroke(style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .foregroundColor(Color.gray.opacity(0.2))
+                .padding(.horizontal, 16),
+            alignment: .bottom
+        )
         .contentShape(Rectangle())  // 确保整个区域都可点击
         .onTapGesture {
             onSubtitleTap()
+        }
+    }
+
+    // MARK: - 虚线形状
+    struct DashedLine: Shape {
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            path.move(to: CGPoint(x: 0, y: rect.height))
+            path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+            return path
         }
     }
     

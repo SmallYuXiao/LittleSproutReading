@@ -121,6 +121,45 @@ struct YouTubeInputView: View {
                         }
                     }
                     
+                    // 历史记录
+                    if !viewModel.historyManager.histories.isEmpty {
+                        VStack(spacing: 16) {
+                            HStack {
+                                Text("📜 历史记录")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.white)
+                                
+                                Spacer()
+                                
+                                Button(action: {
+                                    viewModel.historyManager.clearAll()
+                                }) {
+                                    Text("清空")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.red)
+                                }
+                            }
+                            
+                            ScrollView {
+                                VStack(spacing: 12) {
+                                    ForEach(viewModel.historyManager.histories) { history in
+                                        HistoryCard(
+                                            history: history,
+                                            timeAgo: viewModel.historyManager.timeAgo(from: history.watchedAt),
+                                            onTap: {
+                                                loadVideoFromHistory(history)
+                                            },
+                                            onDelete: {
+                                                viewModel.historyManager.deleteHistory(history)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            .frame(maxHeight: 200)
+                        }
+                    }
+                    
                     // 示例提示
                     VStack(spacing: 12) {
                         Text("支持的格式")
@@ -135,7 +174,7 @@ struct YouTubeInputView: View {
                     }
                 }
                 .padding(40)
-                .frame(maxWidth: 600)
+                .frame(maxWidth: min(600, UIScreen.main.bounds.width - 40))
                 .background(Color.white.opacity(0.05))
                 .cornerRadius(24)
                 .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
@@ -190,6 +229,11 @@ struct YouTubeInputView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             isLoading = false
         }
+    }
+    
+    private func loadVideoFromHistory(_ history: VideoHistory) {
+        urlInput = history.videoID
+        loadVideo()
     }
 }
 
