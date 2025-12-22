@@ -84,6 +84,13 @@ class IIILabYouTubeService:
             
             logger.info(f"Requesting video info for: {youtube_url}")
             
+            # 调试：输出请求详情
+            logger.debug(f"Request URL: {self.BASE_URL}")
+            logger.debug(f"Request payload: {payload}")
+            logger.debug(f"Request headers: {headers}")
+            logger.debug(f"Timestamp: {timestamp}")
+            logger.debug(f"Signature: {signature}")
+            
             # 发送请求
             response = self.session.post(
                 self.BASE_URL,
@@ -91,6 +98,18 @@ class IIILabYouTubeService:
                 headers=headers,
                 timeout=30
             )
+            
+            # 调试：输出响应详情
+            logger.info(f"Response status code: {response.status_code}")
+            logger.debug(f"Response headers: {dict(response.headers)}")
+            
+            # 如果是 400 错误，记录响应内容
+            if response.status_code == 400:
+                try:
+                    error_data = response.json()
+                    logger.error(f"400 Error response body: {error_data}")
+                except:
+                    logger.error(f"400 Error response text: {response.text}")
             
             response.raise_for_status()
             data = response.json()
