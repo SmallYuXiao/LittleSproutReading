@@ -285,11 +285,15 @@ def get_youtube_info(video_id):
 
 
 if __name__ == '__main__':
-
+    import os
+    
+    # 从环境变量获取端口,默认 5001
+    port = int(os.getenv('PORT', 5001))
+    
     print("=" * 60)
     print("🚀 YouTube 字幕服务已启动")
     print("=" * 60)
-    print("📍 服务地址: http://localhost:5001")
+    print(f"📍 服务地址: http://0.0.0.0:{port}")
     print("📖 API 文档:")
     print("   - 健康检查: GET /health")
     print("   - 获取字幕: GET /api/subtitles/<video_id>?lang=en")
@@ -298,7 +302,9 @@ if __name__ == '__main__':
     print("   - 获取视频信息(iiilab): GET /api/youtube-info/<video_id>")
     print("=" * 60)
     print("💡 示例:")
-    print("   curl http://localhost:5001/api/subtitles/dQw4w9WgXcQ")
+    print(f"   curl http://localhost:{port}/api/subtitles/dQw4w9WgXcQ")
     print("=" * 60)
     
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    # 生产环境使用 gunicorn,开发环境使用 Flask 内置服务器
+    is_production = os.getenv('RENDER', False)
+    app.run(host='0.0.0.0', port=port, debug=not is_production)

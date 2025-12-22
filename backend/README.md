@@ -125,3 +125,20 @@ curl http://localhost:5000/api/languages/dQw4w9WgXcQ
 - 仅支持有字幕的 YouTube 视频
 - 某些受限视频可能无法获取字幕
 - 建议在本地网络环境下使用
+
+## ☁️ 云部署
+
+想要将服务部署到云端,实现 24/7 在线访问?
+
+👉 **查看详细部署指南**: [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md)
+
+支持的免费云平台:
+- ✅ **Render** (推荐) - 完全免费,自动部署
+- ✅ **Railway** - 每月 $5 免费额度
+- ✅ **Fly.io** - 免费 3 个应用
+
+部署后你将获得:
+- 🌐 公网访问地址 (HTTPS)
+- 🔄 自动部署更新
+- 📊 日志和监控
+- 🚀 全球 CDN 加速
