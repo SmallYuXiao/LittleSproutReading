@@ -113,6 +113,25 @@ struct VideoPlayerView: View {
                 
                 Spacer()
                 
+                // 街溜子模式按钮
+                Button(action: {
+                    viewModel.toggleStreetWandererMode()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: viewModel.isStreetWandererMode ? "person.wave.2.fill" : "person.wave.2")
+                        Text("街溜子模式")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(viewModel.isStreetWandererMode ? .green : .white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(viewModel.isStreetWandererMode ? Color.green.opacity(0.2) : Color.white.opacity(0.1))
+                    .clipShape(Capsule())
+                }
+                
+                Spacer()
+                
                 Text(viewModel.formatTime(viewModel.duration))
                     .font(.caption)
                     .foregroundColor(.white)

@@ -9,7 +9,7 @@ import Foundation
 import AVFoundation
 import Combine
 
-class VideoPlayerViewModel: ObservableObject {
+class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     @Published var player: AVPlayer?
     @Published var isPlaying = false
     @Published var currentTime: Double = 0
@@ -17,6 +17,11 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var subtitles: [Subtitle] = []
     @Published var currentSubtitleIndex: Int? = nil
     @Published var subtitleOffset: Double = 0.0  // 字幕偏移量(秒)
+    
+    // 街溜子模式 (中英轮读)
+    @Published var isStreetWandererMode = false
+    private let synthesizer = AVSpeechSynthesizer()
+    private var lastSpokenIndex: Int? = nil
     
     // YouTube 相关
     @Published var currentVideo: Video?
@@ -34,9 +39,17 @@ class VideoPlayerViewModel: ObservableObject {
     private var timeObserver: Any?
     private var cancellables = Set<AnyCancellable>()
 
+    override init() {
+        super.init()
+        synthesizer.delegate = self
+    }
     
     /// 加载视频
     func loadVideo(_ video: Video, originalURL: String = "") {
+        // 重置状态
+        lastSpokenIndex = nil
+        synthesizer.stopSpeaking(at: .immediate)
+        
         currentVideo = video
         originalInputURL = originalURL.isEmpty ? "https://www.youtube.com/watch?v=\(video.youtubeVideoID)" : originalURL
         
@@ -297,9 +310,24 @@ class VideoPlayerViewModel: ObservableObject {
         // 使用 lastIndex 而不是 firstIndex，以处理 YouTube 可能存在的字幕重叠情况。
         // 这样如果多个字幕块同时包含当前时间，会优先显示“最新”开始的那一个。
         if let index = subtitles.lastIndex(where: { $0.contains(time: adjustedTime) }) {
-            currentSubtitleIndex = index
+            if currentSubtitleIndex != index {
+                currentSubtitleIndex = index
+            }
+            
+            // 街溜子模式逻辑：在字幕快结束时触发
+            if isStreetWandererMode {
+                let sub = subtitles[index]
+                // 距离结束还有 0.3 秒时触发朗读
+                if adjustedTime >= sub.endTime - 0.3 && lastSpokenIndex != index {
+                    handleStreetWandererPause(for: index)
+                }
+            }
         } else {
             currentSubtitleIndex = nil
+            // 在字幕间隙重置说话记录，允许手动回跳后重读
+            if lastSpokenIndex != nil {
+                lastSpokenIndex = nil
+            }
         }
     }
     
@@ -308,6 +336,58 @@ class VideoPlayerViewModel: ObservableObject {
         subtitleOffset += delta
         updateCurrentSubtitle()
         print("📊 字幕偏移: \(String(format: "%.1f", subtitleOffset))秒")
+    }
+    
+    /// 切换街溜子模式
+    func toggleStreetWandererMode() {
+        isStreetWandererMode.toggle()
+        if !isStreetWandererMode {
+            synthesizer.stopSpeaking(at: .immediate)
+            lastSpokenIndex = nil
+        }
+    }
+    
+    private func handleStreetWandererPause(for index: Int) {
+        guard isStreetWandererMode else { return }
+        lastSpokenIndex = index
+        
+        // 暂停视频
+        pauseVideo()
+        
+        // 稍等 0.1s 确保暂停生效再开始说话
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self = self else { return }
+            
+            // 获取当前字幕的中文
+            let chinese = self.subtitles[index].chineseText
+            if !chinese.isEmpty {
+                let utterance = AVSpeechUtterance(string: chinese)
+                utterance.voice = AVSpeechSynthesisVoice(language: "zh-CN")
+                utterance.rate = 0.5
+                utterance.volume = 1.0
+                self.synthesizer.speak(utterance)
+            } else {
+                // 如果没中文，直接恢复播放
+                self.playVideo()
+            }
+        }
+    }
+    
+    // MARK: - AVSpeechSynthesizerDelegate
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        if isStreetWandererMode {
+            playVideo()
+        }
+    }
+    
+    private func playVideo() {
+        player?.play()
+        isPlaying = true
+    }
+    
+    private func pauseVideo() {
+        player?.pause()
+        isPlaying = false
     }
     
     /// 播放/暂停
@@ -324,6 +404,8 @@ class VideoPlayerViewModel: ObservableObject {
     func seek(to time: Double) {
         let cmTime = CMTime(seconds: time, preferredTimescale: 600)
         player?.seek(to: cmTime)
+        // 跳转时重置朗读状态，允许重复朗读当前句
+        lastSpokenIndex = nil
     }
     
     /// 跳转到指定字幕
