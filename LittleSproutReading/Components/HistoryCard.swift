@@ -39,8 +39,9 @@ struct HistoryCard: View {
                 Image(systemName: "trash")
                     .font(.system(size: 16))
                     .foregroundColor(.red)
+                    .padding(8)
             }
-            .padding(8)
+            .buttonStyle(PlainButtonStyle())  // 使用 PlainButtonStyle 避免默认样式
         }
         .padding(12)
         .background(Color.white.opacity(0.05))
@@ -58,7 +59,8 @@ struct HistoryCard: View {
     HistoryCard(
         history: VideoHistory(
             videoID: "dQw4w9WgXcQ",
-            title: "Rick Astley - Never Gonna Give You Up"
+            title: "Rick Astley - Never Gonna Give You Up",
+            originalURL: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         ),
         timeAgo: "2小时前",
         onTap: {},

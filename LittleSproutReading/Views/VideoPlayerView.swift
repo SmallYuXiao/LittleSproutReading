@@ -10,10 +10,12 @@ import AVKit
 
 struct VideoPlayerView: View {
     @ObservedObject var viewModel: VideoPlayerViewModel
+    @Binding var forceLandscape: Bool  // 强制横屏模式绑定
     
     var body: some View {
-        VStack(spacing: 0) {
-            // 视频播放器
+        // 使用 ZStack 让控制条浮动在视频上方
+        ZStack(alignment: .bottom) {
+            // 视频播放器（占满整个区域）
             ZStack {
                 // 背景（始终显示）
                 Rectangle()
@@ -57,9 +59,30 @@ struct VideoPlayerView: View {
                         }
                     }
                 }
+                
+                // 横屏模式切换按钮（右上角）
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            withAnimation {
+                                forceLandscape.toggle()
+                            }
+                        }) {
+                            Image(systemName: "rotate.right")
+                                .font(.system(size: 20))
+                                .foregroundColor(.white)
+                                .padding(12)
+                                .background(Color.black.opacity(0.6))
+                                .clipShape(Circle())
+                        }
+                        .padding(16)
+                    }
+                    Spacer()
+                }
             }
             
-            // 播放控制条
+            // 播放控制条（浮动在底部）
             controlsView
                 .padding()
                 .background(Color.black.opacity(0.8))
@@ -82,51 +105,14 @@ struct VideoPlayerView: View {
             )
             .tint(.green)
             
-            // 控制按钮
+            // 时间显示
             HStack {
-                // 时间显示
                 Text(viewModel.formatTime(viewModel.currentTime))
                     .font(.caption)
                     .foregroundColor(.white)
                 
                 Spacer()
                 
-                // 字幕偏移调节
-                HStack(spacing: 8) {
-                    Button(action: {
-                        viewModel.adjustSubtitleOffset(by: -0.5)
-                    }) {
-                        Image(systemName: "minus.circle")
-                            .foregroundColor(.white)
-                    }
-                    
-                    Text(String(format: "字幕: %.1fs", viewModel.subtitleOffset))
-                        .font(.caption2)
-                        .foregroundColor(.gray)
-                        .frame(width: 70)
-                    
-                    Button(action: {
-                        viewModel.adjustSubtitleOffset(by: 0.5)
-                    }) {
-                        Image(systemName: "plus.circle")
-                            .foregroundColor(.white)
-                    }
-                }
-                
-                Spacer()
-                
-                // 播放/暂停按钮
-                Button(action: {
-                    viewModel.togglePlayPause()
-                }) {
-                    Image(systemName: viewModel.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                        .font(.title)
-                        .foregroundColor(.white)
-                }
-                
-                Spacer()
-                
-                // 总时长
                 Text(viewModel.formatTime(viewModel.duration))
                     .font(.caption)
                     .foregroundColor(.white)

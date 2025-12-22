@@ -26,6 +26,7 @@ class VideoPlayerViewModel: ObservableObject {
     @Published var isLoadingSubtitles = false
     @Published var subtitleError: String?
     @Published var isVideoReady = false  // 视频是否就绪
+    @Published var originalInputURL: String = ""  // 用户输入的原始 URL
     
     // 历史记录
     let historyManager = HistoryManager()
@@ -35,8 +36,9 @@ class VideoPlayerViewModel: ObservableObject {
 
     
     /// 加载视频
-    func loadVideo(_ video: Video) {
+    func loadVideo(_ video: Video, originalURL: String = "") {
         currentVideo = video
+        originalInputURL = originalURL.isEmpty ? "https://www.youtube.com/watch?v=\(video.youtubeVideoID)" : originalURL
         
         // 只处理 YouTube 视频
         loadYouTubeSubtitles(video)
@@ -126,7 +128,8 @@ class VideoPlayerViewModel: ObservableObject {
                     if let title = self.videoTitle, let video = self.currentVideo {
                         let history = VideoHistory(
                             videoID: video.youtubeVideoID,
-                            title: title
+                            title: title,
+                            originalURL: self.originalInputURL
                         )
                         self.historyManager.addHistory(history)
                     }

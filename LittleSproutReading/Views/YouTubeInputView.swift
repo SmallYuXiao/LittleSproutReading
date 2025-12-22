@@ -222,8 +222,8 @@ struct YouTubeInputView: View {
         // 创建 Video 对象
         let video = Video(youtubeVideoID: videoID, title: "YouTube Video")
         
-        // 加载视频
-        viewModel.loadVideo(video)
+        // 加载视频，传递用户输入的原始 URL
+        viewModel.loadVideo(video, originalURL: urlInput)
         
         // 延迟一下再停止加载状态，让用户看到反馈
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -232,7 +232,7 @@ struct YouTubeInputView: View {
     }
     
     private func loadVideoFromHistory(_ history: VideoHistory) {
-        urlInput = history.videoID
+        urlInput = history.originalURL
         loadVideo()
     }
 }

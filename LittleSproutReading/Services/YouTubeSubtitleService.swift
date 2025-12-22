@@ -33,8 +33,8 @@ enum YouTubeSubtitleError: LocalizedError {
 class YouTubeSubtitleService {
     static let shared = YouTubeSubtitleService()
     
-    // 后端服务地址
-    private let baseURL = "http://localhost:5001"
+    // 后端服务地址 - Render 云端部署
+    private let baseURL = "https://littlesproutreading.onrender.com"
     
     private init() {}
     
