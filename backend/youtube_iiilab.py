@@ -142,6 +142,9 @@ class IIILabYouTubeService:
                 for fmt in formats:
                     quality = fmt.get('quality', 0)
                     quality_note = fmt.get('quality_note', '')
+                    # 判断是否分离
+                    is_separate = fmt.get('separate', 0) == 1
+                    
                     format_info = {
                         'quality': f"{quality}p" if quality else quality_note,
                         'quality_value': quality,
@@ -150,10 +153,12 @@ class IIILabYouTubeService:
                         'video_url': fmt.get('video_url', ''),
                         'audio_url': fmt.get('audio_url'),
                         'filesize': fmt.get('video_size', 0),
-                        'has_audio': fmt.get('audio_url') is not None,
+                        # 修复：当 separate=0 时音视频合并（has_audio=True）
+                        # 当 separate=1 时音视频分离（has_audio=False）
+                        'has_audio': not is_separate,
                         'width': 0,  # API 不提供宽度信息
                         'height': quality,  # 使用 quality 作为高度
-                        'separate': fmt.get('separate', 0) == 1,  # 视频和音频是否分离
+                        'separate': is_separate,
                     }
                     video_info['formats'].append(format_info)
                 
