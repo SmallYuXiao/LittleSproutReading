@@ -14,18 +14,51 @@ struct VideoPlayerView: View {
     var body: some View {
         VStack(spacing: 0) {
             // 视频播放器
-            if let player = viewModel.player {
-                VideoPlayer(player: player)
-                    .aspectRatio(16/9, contentMode: .fit)
-                    .background(Color.black)
-            } else {
+            ZStack {
+                // 背景（始终显示）
                 Rectangle()
                     .fill(Color.black)
                     .aspectRatio(16/9, contentMode: .fit)
-                    .overlay {
-                        Text("加载中...")
-                            .foregroundColor(.white)
+                
+                // 视频播放器（如果已加载）
+                if let player = viewModel.player {
+                    VideoPlayer(player: player)
+                        .aspectRatio(16/9, contentMode: .fit)
+                        .background(Color.clear)
+                }
+                
+                // 加载状态覆盖层（在视频未就绪或字幕加载中时显示）
+                if !viewModel.isVideoReady || viewModel.isLoadingSubtitles {
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .green))
+                            .scaleEffect(2.0)
+                        
+                        VStack(spacing: 8) {
+                            if !viewModel.isVideoReady && viewModel.isLoadingSubtitles {
+                                Text("正在加载视频...")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                Text("获取视频信息和字幕")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            } else if !viewModel.isVideoReady {
+                                Text("缓冲视频中...")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                Text("正在加载视频流")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            } else if viewModel.isLoadingSubtitles {
+                                Text("加载字幕中...")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                            }
+                        }
                     }
+                }
             }
             
             // 播放控制条

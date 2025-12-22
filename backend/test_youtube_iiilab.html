@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube 视频解析工具 (iiiLab)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 14px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .example {
+            background: #e3f2fd;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #1976d2;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .results {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .video-info {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .video-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .video-meta {
+            display: flex;
+            gap: 20px;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .thumbnail {
+            width: 100%;
+            max-width: 600px;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: block;
+        }
+
+        .formats-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .format-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .format-card {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .format-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .format-quality {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .format-details {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .format-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 13px;
+            border-radius: 6px;
+        }
+
+        .btn-play {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-copy {
+            background: #2196F3;
+            color: white;
+        }
+
+        .subtitles-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .subtitle-badge {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .video-player-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-player-modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            width: 90%;
+            max-width: 1000px;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            background: white;
+            color: #333;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        video {
+            width: 100%;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 YouTube 视频解析工具</h1>
+            <p class="subtitle">基于 iiiLab 服务 - 支持多清晰度、字幕下载</p>
+
+            <div class="input-section">
+                <input type="text" id="videoInput" placeholder="输入 YouTube 视频 URL 或视频 ID">
+                <button class="btn-primary" id="fetchBtn" onclick="fetchVideoInfo()">🚀 解析视频</button>
+            </div>
+
+            <div class="example">
+                💡 示例: dQw4w9WgXcQ 或 https://www.youtube.com/watch?v=dQw4w9WgXcQ
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在解析视频信息，请稍候...</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="results" id="results">
+            <div class="video-info">
+                <div class="video-title" id="videoTitle"></div>
+                <div class="video-meta">
+                    <span>⏱️ 时长: <strong id="videoDuration"></strong></span>
+                </div>
+                <img class="thumbnail" id="videoThumbnail" alt="视频封面">
+            </div>
+
+            <div class="formats-section">
+                <div class="section-title">
+                    <span>📹</span>
+                    <span>可用格式</span>
+                </div>
+                <div class="format-grid" id="formatGrid"></div>
+            </div>
+
+            <div class="subtitles-section">
+                <div class="section-title">
+                    <span>💬</span>
+                    <span>可用字幕</span>
+                </div>
+                <div class="subtitle-list" id="subtitleList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="video-player-modal" id="videoModal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeVideoPlayer()">✕ 关闭</button>
+            <video id="modalVideo" controls autoplay></video>
+        </div>
+    </div>
+
+    <script>
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+
+            if (hours > 0) {
+                return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            }
+            return `${minutes}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes) return '未知';
+            const mb = bytes / (1024 * 1024);
+            if (mb >= 1000) {
+                return (mb / 1024).toFixed(2) + ' GB';
+            }
+            return mb.toFixed(2) + ' MB';
+        }
+
+        async function fetchVideoInfo() {
+            const input = document.getElementById('videoInput').value.trim();
+
+            if (!input) {
+                showError('请输入 YouTube 视频 URL 或视频 ID');
+                return;
+            }
+
+            // 显示加载状态
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('error').classList.remove('show');
+            document.getElementById('fetchBtn').disabled = true;
+
+            try {
+                const response = await fetch(`http://localhost:5001/api/youtube-info/${encodeURIComponent(input)}`);
+                const data = await response.json();
+
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('fetchBtn').disabled = false;
+
+                if (data.success) {
+                    displayVideoInfo(data);
+                } else {
+                    showError(`解析失败: ${data.error}`);
+                }
+            } catch (error) {
+                document.getElementById('loading').classList.remove('show');
+                document.getElementById('fetchBtn').disabled = false;
+                showError(`请求失败: ${error.message}`);
+            }
+        }
+
+        function displayVideoInfo(data) {
+            // 显示视频基本信息
+            document.getElementById('videoTitle').textContent = data.title;
+            document.getElementById('videoDuration').textContent = formatDuration(data.duration);
+            document.getElementById('videoThumbnail').src = data.thumbnail;
+
+            // 显示格式列表
+            const formatGrid = document.getElementById('formatGrid');
+            formatGrid.innerHTML = '';
+
+            data.formats.forEach((format, index) => {
+                const card = document.createElement('div');
+                card.className = 'format-card';
+                card.innerHTML = `
+                    <div class="format-quality">${format.quality}p</div>
+                    <div class="format-details">
+                        格式: ${format.format.toUpperCase()}<br>
+                        音频: ${format.has_audio ? '✅ 有' : '❌ 无'}<br>
+                        大小: ${formatFileSize(format.filesize)}
+                    </div>
+                    <div class="format-actions">
+                        <button class="btn-small btn-play" onclick="playVideo('${format.video_url}')">▶️ 播放</button>
+                        <button class="btn-small btn-copy" onclick="copyUrl('${format.video_url}')">📋 复制</button>
+                    </div>
+                `;
+                formatGrid.appendChild(card);
+            });
+
+            // 显示字幕列表
+            const subtitleList = document.getElementById('subtitleList');
+            subtitleList.innerHTML = '';
+
+            if (data.subtitles && data.subtitles.length > 0) {
+                data.subtitles.forEach(subtitle => {
+                    const badge = document.createElement('span');
+                    badge.className = 'subtitle-badge';
+                    badge.textContent = `${subtitle.language} (${subtitle.format})`;
+                    badge.style.cursor = 'pointer';
+                    badge.onclick = () => window.open(subtitle.url, '_blank');
+                    subtitleList.appendChild(badge);
+                });
+            } else {
+                subtitleList.innerHTML = '<span style="color: #999;">暂无字幕</span>';
+            }
+
+            document.getElementById('results').classList.add('show');
+        }
+
+        function playVideo(url) {
+            const modal = document.getElementById('videoModal');
+            const video = document.getElementById('modalVideo');
+            video.src = url;
+            modal.classList.add('show');
+        }
+
+        function closeVideoPlayer() {
+            const modal = document.getElementById('videoModal');
+            const video = document.getElementById('modalVideo');
+            video.pause();
+            video.src = '';
+            modal.classList.remove('show');
+        }
+
+        function copyUrl(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert('✅ 视频地址已复制到剪贴板！');
+            }).catch(err => {
+                alert('❌ 复制失败: ' + err);
+            });
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = '❌ ' + message;
+            errorDiv.classList.add('show');
+        }
+
+        // 支持回车键提交
+        document.getElementById('videoInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                fetchVideoInfo();
+            }
+        });
+
+        // 点击模态框背景关闭
+        document.getElementById('videoModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                closeVideoPlayer();
+            }
+        });
+    </script>
+</body>
+
+</html>

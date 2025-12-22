@@ -6,6 +6,7 @@
 
 ### 📺 视频播放
 - 支持本地视频播放
+- **🆕 支持 YouTube 视频学习**
 - 流畅的播放控制(播放/暂停/进度条)
 - 16:9 视频比例优化
 
@@ -15,6 +16,7 @@
 - **双语显示**: 英文+中文翻译
 - **左侧进度条**: 绿色进度条实时显示播放进度
 - **自动滚动**: 当前字幕自动滚动到可见区域
+- **🆕 YouTube 字幕**: 自动获取 YouTube 视频字幕
 
 ### 🔍 AI智能查词
 - **点击查词**: 点击任意单词即可查询释义
@@ -80,7 +82,18 @@ VVEAI_API_KEY=your_api_key_here
 VVEAI_API_BASE_URL=https://api.vveai.com/v1
 ```
 
-### 2. 添加测试资源
+### 2. (可选) 启动 YouTube 字幕服务
+
+如果要使用 YouTube 视频学习功能,需要启动后端服务:
+
+```bash
+cd backend
+./start.sh
+```
+
+详细说明请查看 [YouTube 功能使用指南](YOUTUBE_GUIDE.md)
+
+### 3. 添加测试资源
 
 将你的视频文件放入 `Resources/Videos/` 目录,字幕文件放入 `Resources/Subtitles/` 目录。
 

@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct SubtitleRow: View {
+    @State private var showChinese = false  // 控制中文显示
     let subtitle: Subtitle
     let currentTime: Double
     let isCurrentSubtitle: Bool
@@ -41,13 +42,27 @@ struct SubtitleRow: View {
                             .font(.body)
                     }
                     
-                    // 中文字幕在下
+                    // 中文字幕在下（点击显示）
                     if !subtitle.chineseText.isEmpty {
-                        Text(subtitle.chineseText)
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .multilineTextAlignment(.leading)
+                        ZStack(alignment: .leading) {
+                            // 中文文本
+                            Text(subtitle.chineseText)
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .multilineTextAlignment(.leading)
+                            
+                            // 遮罩层（未点击时显示）
+                            if !showChinese {
+                                Rectangle()
+                                    .fill(Color.gray)
+                            }
+                        }
+                        .frame(height: 30)
+                        .cornerRadius(4)
+                        .onTapGesture {
+                            showChinese.toggle()
+                        }
                     }
                 }
                 .padding(.vertical, 8)
@@ -55,6 +70,7 @@ struct SubtitleRow: View {
         }
         .padding(.horizontal, 16)
         .background(isCurrentSubtitle ? Color.green.opacity(0.1) : Color.clear)
+        .contentShape(Rectangle())  // 确保整个区域都可点击
         .onTapGesture {
             onSubtitleTap()
         }

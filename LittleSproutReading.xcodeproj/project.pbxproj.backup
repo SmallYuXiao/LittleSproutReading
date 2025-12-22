@@ -23,6 +23,8 @@
 		AA0019 /* SubtitleListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0020 /* SubtitleListView.swift */; };
 		AA0021 /* SubtitleRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0022 /* SubtitleRow.swift */; };
 		AA0023 /* WordTranslationPopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0024 /* WordTranslationPopup.swift */; };
+		AA0050 /* sample.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = AA0051 /* sample.mp4 */; };
+		AA0052 /* sample.srt in Resources */ = {isa = PBXBuildFile; fileRef = AA0053 /* sample.srt */; };
 		AA0056 /* Config.plist in Resources */ = {isa = PBXBuildFile; fileRef = AA0057 /* Config.plist */; };
 /* End PBXBuildFile section */
 
@@ -44,6 +46,8 @@
 		AA0024 /* WordTranslationPopup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordTranslationPopup.swift; sourceTree = "<group>"; };
 		AA0025 /* LittleSproutReading.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LittleSproutReading.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0026 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AA0051 /* sample.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = sample.mp4; sourceTree = "<group>"; };
+		AA0053 /* sample.srt */ = {isa = PBXFileReference; lastKnownFileType = text; path = sample.srt; sourceTree = "<group>"; };
 		AA0057 /* Config.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Config.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -160,6 +164,7 @@
 		AA0054 /* Videos */ = {
 			isa = PBXGroup;
 			children = (
+				AA0051 /* sample.mp4 */,
 			);
 			path = Videos;
 			sourceTree = "<group>";
@@ -167,6 +172,7 @@
 		AA0055 /* Subtitles */ = {
 			isa = PBXGroup;
 			children = (
+				AA0053 /* sample.srt */,
 			);
 			path = Subtitles;
 			sourceTree = "<group>";
@@ -232,6 +238,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA0050 /* sample.mp4 in Resources */,
+				AA0052 /* sample.srt in Resources */,
 				AA0056 /* Config.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

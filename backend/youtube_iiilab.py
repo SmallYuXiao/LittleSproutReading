@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""
+iiiLab YouTube 视频解析服务集成
+提供通过 iiilab.com 服务获取 YouTube 视频直接播放地址的功能
+"""
+
+import requests
+import hashlib
+import time
+import logging
+from typing import Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
+
+class IIILabYouTubeService:
+    """iiiLab YouTube 解析服务封装类（使用新 API）"""
+    
+    # 新 API 地址和密钥（来自 iiiLabCrawler 开源项目）
+    BASE_URL = "https://api.snapany.com/v1/extract"
+    SALT = "6HTugjCXxR"  # 新 API 的密钥
+    
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        })
+    
+    def _generate_signature(self, timestamp: int, url: str, language: str = "en") -> str:
+        """
+        生成请求签名 (G-Footer)
+        
+        算法（基于 iiiLabCrawler 开源项目）:
+        G-Footer = md5(url + language + timestamp + salt)
+        
+        参数:
+            timestamp: Unix 时间戳（毫秒）
+            url: YouTube 视频完整 URL
+            language: 语言代码，默认为 "en"
+        
+        返回:
+            32 位 MD5 签名字符串
+        """
+        # 签名字符串: url + language + timestamp + salt
+        signature_string = f"{url}{language}{timestamp}{self.SALT}"
+        
+        # 计算 MD5 哈希
+        signature = hashlib.md5(signature_string.encode()).hexdigest()
+        
+        logger.debug(f"Signature input: {signature_string}")
+        logger.debug(f"Generated signature: {signature}")
+        
+        return signature
+    
+    def extract_video_info(self, youtube_url: str) -> Dict:
+        """
+        提取 YouTube 视频信息
+        
+        Args:
+            youtube_url: YouTube 视频 URL
+            
+        Returns:
+            包含视频信息的字典
+        """
+        try:
+            # 使用毫秒级时间戳（新 API 要求）
+            timestamp = int(time.time() * 1000)
+            language = "en"  # 语言代码
+            
+            # 准备请求数据（新 API 使用 link 参数）
+            payload = {
+                "link": youtube_url
+            }
+            
+            # 添加签名头
+            signature = self._generate_signature(timestamp, youtube_url, language)
+            headers = {
+                'G-Timestamp': str(timestamp),
+                'G-Footer': signature,
+                'Accept-Language': language,  # 新 API 要求
+            }
+            
+            logger.info(f"Requesting video info for: {youtube_url}")
+            
+            # 发送请求
+            response = self.session.post(
+                self.BASE_URL,
+                json=payload,
+                headers=headers,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            data = response.json()
+            
+            # 调试：输出完整响应
+            logger.info(f"API Response keys: {list(data.keys())}")
+            
+            # API 直接返回数据，没有 code/msg 包装
+            if 'text' in data or 'medias' in data:
+                return self._parse_response(data)
+            else:
+                # 如果有错误信息
+                error_msg = data.get('msg') or data.get('error') or 'Unknown error'
+                raise Exception(f"API 返回错误: {error_msg}")
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"请求失败: {str(e)}")
+            raise Exception(f"网络请求失败: {str(e)}")
+        except Exception as e:
+            logger.error(f"解析失败: {str(e)}")
+            raise
+    
+    def _parse_response(self, data: Dict) -> Dict:
+        """解析 API 响应数据"""
+        # API 直接返回数据，不需要从 data.get('data') 中提取
+        
+        # 提取视频信息
+        video_info = {
+            'success': True,
+            'title': data.get('text', ''),
+            'thumbnail': '',
+            'duration': data.get('duration', 0),
+            'formats': [],
+            'subtitles': []
+        }
+        
+        # 解析 medias 数组
+        medias = data.get('medias', [])
+        for media in medias:
+            media_type = media.get('media_type', '')
+            
+            if media_type == 'video':
+                # 提取缩略图
+                if media.get('preview_url'):
+                    video_info['thumbnail'] = media.get('preview_url')
+                
+                # 提取视频格式
+                formats = media.get('formats', [])
+                for fmt in formats:
+                    quality = fmt.get('quality', 0)
+                    quality_note = fmt.get('quality_note', '')
+                    format_info = {
+                        'quality': f"{quality}p" if quality else quality_note,
+                        'quality_value': quality,
+                        'quality_note': quality_note,
+                        'format': fmt.get('video_ext', 'mp4'),
+                        'video_url': fmt.get('video_url', ''),
+                        'audio_url': fmt.get('audio_url'),
+                        'filesize': fmt.get('video_size', 0),
+                        'has_audio': fmt.get('audio_url') is not None,
+                        'width': 0,  # API 不提供宽度信息
+                        'height': quality,  # 使用 quality 作为高度
+                        'separate': fmt.get('separate', 0) == 1,  # 视频和音频是否分离
+                    }
+                    video_info['formats'].append(format_info)
+                
+                # 提取字幕
+                subtitles = media.get('subtitles', [])
+                for subtitle in subtitles:
+                    lang_name = subtitle.get('language_name', '')
+                    lang_tag = subtitle.get('language_tag', '')
+                    urls = subtitle.get('urls', [])
+                    
+                    if urls:
+                        # 使用第一个 URL（通常是 SRT 格式）
+                        video_info['subtitles'].append({
+                            'language': lang_tag or lang_name,
+                            'language_name': lang_name,
+                            'url': urls[0].get('url'),
+                            'format': urls[0].get('format', 'srt')
+                        })
+                        
+            elif media_type == 'audio':
+                # 音频资源（可能需要与视频合并）
+                # 暂时不处理，因为高质量视频需要单独的音频流
+                pass
+        
+        # 按质量排序（从高到低）
+        video_info['formats'].sort(
+            key=lambda x: int(x.get('height', 0)) if x.get('height') else 0,
+            reverse=True
+        )
+        
+        return video_info
+
+
+def extract_video_id(url: str) -> Optional[str]:
+    """从 YouTube URL 中提取视频 ID"""
+    import re
+    
+    patterns = [
+        r'(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})',
+        r'youtube\.com\/embed\/([a-zA-Z0-9_-]{11})',
+        r'youtube\.com\/v\/([a-zA-Z0-9_-]{11})',
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    
+    # 如果已经是 11 位的视频 ID
+    if re.match(r'^[a-zA-Z0-9_-]{11}$', url):
+        return url
+    
+    return None
+
+
+def build_youtube_url(video_id: str) -> str:
+    """根据视频 ID 构建完整的 YouTube URL"""
+    return f"https://www.youtube.com/watch?v={video_id}"
+
+
+if __name__ == '__main__':
+    # 测试代码
+    logging.basicConfig(level=logging.INFO)
+    
+    service = IIILabYouTubeService()
+    
+    # 测试视频
+    test_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    
+    try:
+        result = service.extract_video_info(test_url)
+        print("\n" + "="*60)
+        print("视频信息提取成功!")
+        print("="*60)
+        print(f"标题: {result['title']}")
+        print(f"时长: {result['duration']} 秒")
+        print(f"\n可用格式 ({len(result['formats'])} 个):")
+        for fmt in result['formats'][:5]:  # 只显示前5个
+            print(f"  - {fmt['quality']}p ({fmt['format']}) - 音频: {'有' if fmt['has_audio'] else '无'}")
+        print(f"\n字幕 ({len(result['subtitles'])} 个)")
+        print("="*60)
+    except Exception as e:
+        print(f"\n错误: {str(e)}")
