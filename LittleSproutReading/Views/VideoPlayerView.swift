@@ -18,12 +18,10 @@ struct VideoPlayerView: View {
                 // 背景（始终显示）
                 Rectangle()
                     .fill(Color.black)
-                    .aspectRatio(16/9, contentMode: .fit)
                 
                 // 视频播放器（如果已加载）
                 if let player = viewModel.player {
                     VideoPlayer(player: player)
-                        .aspectRatio(16/9, contentMode: .fit)
                         .background(Color.clear)
                 }
                 
