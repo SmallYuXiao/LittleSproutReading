@@ -115,14 +115,29 @@ class VideoPlayerViewModel: ObservableObject {
                     chineseSubs = try await YouTubeSubtitleService.shared
                         .downloadSubtitleContent(from: chinese.url)
                 } else {
-                    // 如果没有原生中文字幕, 尝试使用后端自动翻译功能
-                    print("🔄 未找到原生中文字幕, 尝试从后端获取自动翻译字幕...")
+                    // 三级回退逻辑
+                    
+                    // 1. 尝试使用后端翻译接口 (youtube-transcript-api)
+                    print("🔄 尝试后端自动翻译 (1/2)...")
                     do {
                         chineseSubs = try await YouTubeSubtitleService.shared
                             .fetchSubtitles(videoID: videoID, language: "zh")
-                        print("✅ 成功获取自动翻译中文字幕")
+                        print("✅ 后端自动翻译成功")
                     } catch {
-                        print("⚠️ 自动翻译字幕获取失败: \(error.localizedDescription)")
+                        print("⚠️ 后端自动翻译失败: \(error.localizedDescription)")
+                        
+                        // 2. 尝试 Smart URL 翻译 (利用 iiilab 提供的 YouTube 直接链接)
+                        if let english = englishSubtitle, english.url.contains("youtube.com/api/timedtext") {
+                            print("🔄 尝试 Smart URL 直接翻译 (2/2)...")
+                            let translatedURL = english.url + "&tlang=zh-Hans"
+                            do {
+                                chineseSubs = try await YouTubeSubtitleService.shared
+                                    .downloadSubtitleContent(from: translatedURL)
+                                print("✅ Smart URL 翻译成功")
+                            } catch {
+                                print("❌ 所有翻译尝试均已失败")
+                            }
+                        }
                     }
                 }
                 

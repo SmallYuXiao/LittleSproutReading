@@ -56,12 +56,12 @@ class SubtitleParser {
             var foundChinese = false
             
             for line in cleanedLines {
-                if containsChinese(line) && !foundChinese {
-                    // 第一次遇到中文行
-                    chineseText = line
+                if containsChinese(line) {
+                    // 收集所有中文行
+                    chineseText += (chineseText.isEmpty ? "" : " ") + line
                     foundChinese = true
-                } else if !containsChinese(line) {
-                    // 英文行
+                } else {
+                    // 收集所有非中文行（英文）
                     englishText += (englishText.isEmpty ? "" : " ") + line
                 }
             }

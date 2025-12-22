@@ -47,23 +47,28 @@ def get_subtitles(video_id):
     try:
         # 获取语言参数(默认英文)
         preferred_lang = request.args.get('lang', 'en')
-        
         logger.info(f"Fetching subtitles for video: {video_id}, language: {preferred_lang}")
         
         # 获取字幕列表
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         
+        # 扩展语言匹配逻辑
+        zh_variants = ['zh-Hans', 'zh-Hant', 'zh', 'zh-CN', 'zh-TW', 'zh-HK', 'zh-SG']
+        en_variants = ['en', 'en-US', 'en-GB']
+        
         # 尝试获取指定语言的字幕
         try:
-            transcript = transcript_list.find_transcript([preferred_lang])
-            logger.info(f"Found native transcript for: {preferred_lang}")
+            # 如果是中文, 尝试所有变体
+            lang_to_search = zh_variants if preferred_lang.startswith('zh') else [preferred_lang]
+            transcript = transcript_list.find_transcript(lang_to_search)
+            logger.info(f"Found native transcript for: {transcript.language_code}")
         except:
             # 如果指定语言不存在, 尝试翻译
             logger.info(f"Native transcript for {preferred_lang} not found. Attempting translation...")
             try:
                 # 优先找英文进行翻译
                 try:
-                    source_transcript = transcript_list.find_transcript(['en', 'en-US', 'en-GB'])
+                    source_transcript = transcript_list.find_transcript(en_variants)
                 except:
                     # 没英文就找第一个可用的
                     source_transcript = list(transcript_list)[0]
