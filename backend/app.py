@@ -56,16 +56,28 @@ def get_subtitles(video_id):
         # 尝试获取指定语言的字幕
         try:
             transcript = transcript_list.find_transcript([preferred_lang])
+            logger.info(f"Found native transcript for: {preferred_lang}")
         except:
-            # 如果指定语言不存在,尝试获取英文字幕
+            # 如果指定语言不存在, 尝试翻译
+            logger.info(f"Native transcript for {preferred_lang} not found. Attempting translation...")
             try:
-                transcript = transcript_list.find_transcript(['en', 'en-US', 'en-GB'])
-            except:
-                # 如果英文也不存在,获取第一个可用字幕
+                # 优先找英文进行翻译
+                try:
+                    source_transcript = transcript_list.find_transcript(['en', 'en-US', 'en-GB'])
+                except:
+                    # 没英文就找第一个可用的
+                    source_transcript = list(transcript_list)[0]
+                
+                transcript = source_transcript.translate(preferred_lang)
+                logger.info(f"Successfully translated from {source_transcript.language_code} to {preferred_lang}")
+            except Exception as te:
+                logger.error(f"Translation failed: {str(te)}")
+                # 如果翻译失败, 回退到获取第一个可用字幕
                 available_transcripts = list(transcript_list)
                 if not available_transcripts:
                     raise Exception("No subtitles available for this video")
                 transcript = available_transcripts[0]
+                logger.info(f"Falling back to original transcript: {transcript.language_code}")
         
         # 获取字幕数据
         subtitle_data = transcript.fetch()

@@ -111,9 +111,19 @@ class VideoPlayerViewModel: ObservableObject {
                 }
                 
                 if let chinese = chineseSubtitle {
-                    print("⬇️ 下载中文字幕: \(chinese.language_name)")
+                    print("⬇️ 下载原生中文字幕: \(chinese.language_name)")
                     chineseSubs = try await YouTubeSubtitleService.shared
                         .downloadSubtitleContent(from: chinese.url)
+                } else {
+                    // 如果没有原生中文字幕, 尝试使用后端自动翻译功能
+                    print("🔄 未找到原生中文字幕, 尝试从后端获取自动翻译字幕...")
+                    do {
+                        chineseSubs = try await YouTubeSubtitleService.shared
+                            .fetchSubtitles(videoID: videoID, language: "zh")
+                        print("✅ 成功获取自动翻译中文字幕")
+                    } catch {
+                        print("⚠️ 自动翻译字幕获取失败: \(error.localizedDescription)")
+                    }
                 }
                 
                 // 合并字幕
@@ -228,6 +238,9 @@ class VideoPlayerViewModel: ObservableObject {
                 case .readyToPlay:
                     print("✅ 视频就绪，可以播放")
                     self?.isVideoReady = true
+                    // 自动播放视频
+                    self?.player?.play()
+                    self?.isPlaying = true
                 case .failed:
                     print("❌ 视频加载失败: \(playerItem.error?.localizedDescription ?? "Unknown error")")
                     self?.isVideoReady = false
@@ -265,7 +278,14 @@ class VideoPlayerViewModel: ObservableObject {
     /// 更新当前字幕(应用偏移量)
     private func updateCurrentSubtitle() {
         let adjustedTime = currentTime + subtitleOffset
-        currentSubtitleIndex = subtitles.firstIndex { $0.contains(time: adjustedTime) }
+        
+        // 使用 lastIndex 而不是 firstIndex，以处理 YouTube 可能存在的字幕重叠情况。
+        // 这样如果多个字幕块同时包含当前时间，会优先显示“最新”开始的那一个。
+        if let index = subtitles.lastIndex(where: { $0.contains(time: adjustedTime) }) {
+            currentSubtitleIndex = index
+        } else {
+            currentSubtitleIndex = nil
+        }
     }
     
     /// 调整字幕偏移量
