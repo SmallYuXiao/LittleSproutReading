@@ -12,6 +12,12 @@ struct YouTubeInputView: View {
     @State private var urlInput = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var isInitializing = true  // 首次加载状态
+    
+    init(viewModel: VideoPlayerViewModel) {
+        self.viewModel = viewModel
+        print("🎬 [STARTUP] YouTubeInputView init 开始: \(Date())")
+    }
     
     var body: some View {
         ZStack {
@@ -24,7 +30,7 @@ struct YouTubeInputView: View {
             .ignoresSafeArea()
             
             // 主内容
-            VStack(spacing: 0) {
+            VStack(spacing: 16) {
                 Spacer()
                 
                 // 卡片容器
@@ -33,13 +39,7 @@ struct YouTubeInputView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "play.rectangle.fill")
                             .font(.system(size: 72))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.green, .blue],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .foregroundColor(.green)
                         
                         VStack(spacing: 8) {
                             Text("Little Sprout Reading")
@@ -92,13 +92,7 @@ struct YouTubeInputView: View {
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
-                            .background(
-                                LinearGradient(
-                                    colors: urlInput.isEmpty ? [.gray] : [.green, .blue],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
+                            .background(urlInput.isEmpty ? Color.gray : Color.green)
                             .foregroundColor(.white)
                             .cornerRadius(12)
                         }
@@ -121,8 +115,8 @@ struct YouTubeInputView: View {
                         }
                     }
                     
-                    // 历史记录
-                    if !viewModel.historyManager.histories.isEmpty {
+                    // 历史记录（延迟加载）
+                    if !isInitializing && !viewModel.historyManager.histories.isEmpty {
                         VStack(spacing: 16) {
                             HStack {
                                 Text("📜 历史记录")
@@ -132,17 +126,22 @@ struct YouTubeInputView: View {
                                 Spacer()
                                 
                                 Button(action: {
-                                    viewModel.historyManager.clearAll()
+                                    print("🗑️ [DEBUG] 清空按钮被点击")
+                                    print("🗑️ [DEBUG] 当前历史记录数量: \(viewModel.historyManager.histories.count)")
+                                    withAnimation {
+                                        viewModel.historyManager.clearAll()
+                                    }
                                 }) {
                                     Text("清空")
                                         .font(.system(size: 14))
                                         .foregroundColor(.red)
                                 }
+                                .buttonStyle(BorderlessButtonStyle())
                             }
                             
                             ScrollView {
                                 VStack(spacing: 12) {
-                                    ForEach(viewModel.historyManager.histories) { history in
+                                    ForEach(viewModel.historyManager.histories, id: \.id) { history in
                                         HistoryCard(
                                             history: history,
                                             timeAgo: viewModel.historyManager.timeAgo(from: history.watchedAt),
@@ -150,32 +149,23 @@ struct YouTubeInputView: View {
                                                 loadVideoFromHistory(history)
                                             },
                                             onDelete: {
-                                                viewModel.historyManager.deleteHistory(history)
+                                                print("📝 [DEBUG] YouTubeInputView 收到删除请求: \(history.title)")
+                                                withAnimation {
+                                                    viewModel.historyManager.deleteHistory(history)
+                                                }
                                             }
                                         )
+                                        .transition(.opacity.combined(with: .move(edge: .trailing)))
                                     }
                                 }
                             }
                             .frame(maxHeight: 200)
                         }
                     }
-                    
-                    // 示例提示
-                    VStack(spacing: 12) {
-                        Text("支持的格式")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.gray)
-                        
-                        VStack(alignment: .leading, spacing: 8) {
-                            exampleRow(icon: "checkmark.circle.fill", text: "https://www.youtube.com/watch?v=...")
-                            exampleRow(icon: "checkmark.circle.fill", text: "https://youtu.be/...")
-                            exampleRow(icon: "checkmark.circle.fill", text: "视频 ID (例如: dQw4w9WgXcQ)")
-                        }
-                    }
                 }
-                .padding(40)
+                .padding(0)
                 .frame(maxWidth: min(600, UIScreen.main.bounds.width - 40))
-                .background(Color.white.opacity(0.05))
+                // .background(Color.white.opacity(0.05))
                 .cornerRadius(24)
                 .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
                 
@@ -188,6 +178,15 @@ struct YouTubeInputView: View {
                     .padding(.bottom, 32)
             }
             .padding(.horizontal, 32)
+        }
+        .onAppear {
+            print("🎬 [STARTUP] YouTubeInputView onAppear 开始: \(Date())")
+            
+            // 延迟加载非关键元素（历史记录和示例）
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isInitializing = false
+                print("✅ [STARTUP] YouTubeInputView 初始化完成: \(Date())")
+            }
         }
     }
     

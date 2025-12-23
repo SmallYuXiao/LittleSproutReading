@@ -20,7 +20,7 @@ struct HistoryCard: View {
                 .font(.system(size: 32))
                 .foregroundColor(.green)
             
-            // 视频信息
+            // 视频信息（可点击区域）
             VStack(alignment: .leading, spacing: 4) {
                 Text(history.title)
                     .font(.system(size: 15, weight: .medium))
@@ -31,17 +31,25 @@ struct HistoryCard: View {
                     .font(.system(size: 13))
                     .foregroundColor(.gray)
             }
-            
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onTap()
+            }
             
             // 删除按钮
-            Button(action: onDelete) {
+            Button(action: {
+                print("🗑️ 删除按钮被点击")
+                onDelete()
+            }) {
                 Image(systemName: "trash")
                     .font(.system(size: 16))
                     .foregroundColor(.red)
                     .padding(8)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(Circle())
             }
-            .buttonStyle(PlainButtonStyle())  // 使用 PlainButtonStyle 避免默认样式
+            .buttonStyle(BorderlessButtonStyle())  // 使用 BorderlessButtonStyle
         }
         .padding(12)
         .background(Color.white.opacity(0.05))
@@ -50,8 +58,6 @@ struct HistoryCard: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.green.opacity(0.2), lineWidth: 1)
         )
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onTap)
     }
 }
 

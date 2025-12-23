@@ -7,15 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		9808E01F2EF91236002FB852 /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9808E01E2EF91236002FB852 /* YouTubePlayerKit */; };
 		9808E0212EF91285002FB852 /* VideoHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9808E0202EF91285002FB852 /* VideoHistory.swift */; };
 		9808E0232EF9128F002FB852 /* HistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9808E0222EF9128F002FB852 /* HistoryManager.swift */; };
 		9808E0252EF91299002FB852 /* HistoryCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9808E0242EF91299002FB852 /* HistoryCard.swift */; };
 		983157992EF84B1D00D1C8EA /* YouTubeSubtitleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 983157972EF84B1D00D1C8EA /* YouTubeSubtitleService.swift */; };
 		9831579A2EF84B1D00D1C8EA /* YouTubeURLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 983157982EF84B1D00D1C8EA /* YouTubeURLParser.swift */; };
 		9831579D2EF84B8800D1C8EA /* YouTubeInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9831579B2EF84B8800D1C8EA /* YouTubeInputView.swift */; };
-		984AB7FB2EF853BE007A10EC /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 984AB7FA2EF853BE007A10EC /* YouTubePlayerKit */; };
-		98DBE9512EF9710E00053643 /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 98DBE9502EF9710E00053643 /* YouTubePlayerKit */; };
+		9831579E2EF84C0100D1C8EA /* YouTubeWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9831579C2EF84C0100D1C8EA /* YouTubeWebView.swift */; };
+
 		AA0001 /* LittleSproutReadingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0002 /* LittleSproutReadingApp.swift */; };
 		AA0003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0004 /* ContentView.swift */; };
 		AA0005 /* Subtitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0006 /* Subtitle.swift */; };
@@ -39,6 +38,7 @@
 		983157972EF84B1D00D1C8EA /* YouTubeSubtitleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeSubtitleService.swift; sourceTree = "<group>"; };
 		983157982EF84B1D00D1C8EA /* YouTubeURLParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeURLParser.swift; sourceTree = "<group>"; };
 		9831579B2EF84B8800D1C8EA /* YouTubeInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeInputView.swift; sourceTree = "<group>"; };
+		9831579C2EF84C0100D1C8EA /* YouTubeWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeWebView.swift; sourceTree = "<group>"; };
 		AA0002 /* LittleSproutReadingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LittleSproutReadingApp.swift; sourceTree = "<group>"; };
 		AA0004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AA0006 /* Subtitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Subtitle.swift; sourceTree = "<group>"; };
@@ -62,9 +62,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9808E01F2EF91236002FB852 /* YouTubePlayerKit in Frameworks */,
-				984AB7FB2EF853BE007A10EC /* YouTubePlayerKit in Frameworks */,
-				98DBE9512EF9710E00053643 /* YouTubePlayerKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -147,6 +144,7 @@
 			children = (
 				AA0004 /* ContentView.swift */,
 				9831579B2EF84B8800D1C8EA /* YouTubeInputView.swift */,
+				9831579C2EF84C0100D1C8EA /* YouTubeWebView.swift */,
 				AA0018 /* VideoPlayerView.swift */,
 				AA0020 /* SubtitleListView.swift */,
 			);
@@ -208,7 +206,6 @@
 			);
 			mainGroup = AA0028;
 			packageReferences = (
-				98DBE94F2EF9710E00053643 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */,
 			);
 			productRefGroup = AA0030 /* Products */;
 			projectDirPath = "";
@@ -247,6 +244,7 @@
 				AA0009 /* SubtitleParser.swift in Sources */,
 				AA0011 /* WordDefinition.swift in Sources */,
 				9831579D2EF84B8800D1C8EA /* YouTubeInputView.swift in Sources */,
+				9831579E2EF84C0100D1C8EA /* YouTubeWebView.swift in Sources */,
 				AA0013 /* DictionaryService.swift in Sources */,
 				AA0015 /* VideoPlayerViewModel.swift in Sources */,
 				AA0017 /* VideoPlayerView.swift in Sources */,
@@ -469,48 +467,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		9808E01D2EF91236002FB852 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/SvenTiigi/YouTubePlayerKit.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.5;
-			};
-		};
-		984AB7F92EF853BE007A10EC /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/SvenTiigi/YouTubePlayerKit.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.5;
-			};
-		};
-		98DBE94F2EF9710E00053643 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/SvenTiigi/YouTubePlayerKit.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.5;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		9808E01E2EF91236002FB852 /* YouTubePlayerKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9808E01D2EF91236002FB852 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */;
-			productName = YouTubePlayerKit;
-		};
-		984AB7FA2EF853BE007A10EC /* YouTubePlayerKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 984AB7F92EF853BE007A10EC /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */;
-			productName = YouTubePlayerKit;
-		};
-		98DBE9502EF9710E00053643 /* YouTubePlayerKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 98DBE94F2EF9710E00053643 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */;
-			productName = YouTubePlayerKit;
-		};
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AA0042 /* Project object */;

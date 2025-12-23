@@ -12,12 +12,17 @@ struct ContentView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var forceLandscape = false  // 强制横屏模式
     
+    init() {
+        print("📺 [STARTUP] ContentView init 开始: \(Date())")
+    }
+    
     var body: some View {
         GeometryReader { geometry in
             ZStack {
                 VStack(spacing: 0) {
                     // 内容区域
                     if let video = viewModel.currentVideo, video.isYouTube {
+                        let _ = print("🖥️ [ContentView] 显示播放器页面 - videoID: \(video.youtubeVideoID)")
                         VStack(spacing: 0) {
                             // 导航栏（强制横屏时隐藏）
                             if !forceLandscape {
@@ -67,8 +72,9 @@ struct ContentView: View {
                             .frame(width: geometry.size.width, height: geometry.size.height)
                         }
                     } else {
-                        // YouTube URL 输入页面（全屏）
-                        YouTubeInputView(viewModel: viewModel)
+                        let _ = print("🖥️ [ContentView] 显示 WebView 浏览页面")
+                        // YouTube Web 浏览页面（全屏）
+                        YouTubeWebBrowserView(viewModel: viewModel)
                     }
                 }
                 .offset(x: dragOffset)
@@ -112,9 +118,9 @@ struct ContentView: View {
             
             Spacer()
             
-            // 视频标题
+            // 视频标题（优先显示从 API 获取的标题）
             if let video = viewModel.currentVideo {
-                Text(video.title)
+                Text(viewModel.videoTitle ?? video.title)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white)
                     .lineLimit(1)
@@ -123,13 +129,45 @@ struct ContentView: View {
             
             Spacer()
             
-            // 菜单按钮（占位）
-            Button(action: {
-                // TODO: 添加菜单功能
-            }) {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 16))
-                    .foregroundColor(.white)
+            // 菜单按钮
+            Menu {
+                // 街溜子模式开关
+                Button(action: {
+                    viewModel.toggleStreetWandererMode()
+                }) {
+                    Label(
+                        viewModel.isStreetWandererMode ? "关闭街溜子模式" : "开启街溜子模式",
+                        systemImage: viewModel.isStreetWandererMode ? "person.wave.2.fill" : "person.wave.2"
+                    )
+                }
+                
+                Divider()
+                
+                // 旋转屏幕
+                Button(action: {
+                    withAnimation {
+                        forceLandscape.toggle()
+                    }
+                }) {
+                    Label(
+                        forceLandscape ? "退出横屏" : "横屏模式",
+                        systemImage: "rotate.right"
+                    )
+                }
+            } label: {
+                ZStack {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                    
+                    // 街溜子模式激活指示器
+                    if viewModel.isStreetWandererMode {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 6, height: 6)
+                            .offset(x: 8, y: -8)
+                    }
+                }
             }
         }
         .padding(.horizontal, 16)

@@ -15,7 +15,9 @@ class HistoryManager: ObservableObject {
     private let userDefaultsKey = "videoHistories"
     
     init() {
+        print("📜 [STARTUP] HistoryManager init 开始: \(Date())")
         loadHistories()
+        print("📜 [STARTUP] HistoryManager init 结束: \(Date())")
     }
     
     /// 添加历史记录
@@ -37,16 +39,26 @@ class HistoryManager: ObservableObject {
     
     /// 删除单条历史记录
     func deleteHistory(_ history: VideoHistory) {
+        print("🗑️ [DEBUG] 开始删除历史记录: \(history.title)")
+        print("🗑️ [DEBUG] 删除前数量: \(histories.count)")
+        
         histories.removeAll { $0.id == history.id }
+        
+        print("🗑️ [DEBUG] 删除后数量: \(histories.count)")
         saveHistories()
-        print("🗑️ 已删除历史记录: \(history.title)")
+        print("✅ 已删除历史记录: \(history.title)")
     }
     
     /// 清空所有历史记录
     func clearAll() {
+        print("🗑️ [DEBUG] 开始清空所有历史记录")
+        print("🗑️ [DEBUG] 清空前数量: \(histories.count)")
+        
         histories.removeAll()
+        
+        print("🗑️ [DEBUG] 清空后数量: \(histories.count)")
         saveHistories()
-        print("🗑️ 已清空所有历史记录")
+        print("✅ 已清空所有历史记录")
     }
     
     /// 保存到 UserDefaults
@@ -58,11 +70,13 @@ class HistoryManager: ObservableObject {
     
     /// 从 UserDefaults 加载
     private func loadHistories() {
+        print("📜 [STARTUP] loadHistories 开始: \(Date())")
         if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
            let decoded = try? JSONDecoder().decode([VideoHistory].self, from: data) {
             histories = decoded
             print("📜 已加载 \(histories.count) 条历史记录")
         }
+        print("📜 [STARTUP] loadHistories 结束: \(Date())")
     }
 }
 

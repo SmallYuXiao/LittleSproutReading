@@ -188,20 +188,35 @@ extension YouTubeSubtitleService {
     /// - Parameter videoID: YouTube Video ID
     /// - Returns: 包含视频信息、播放地址和字幕的完整数据
     func fetchVideoInfoWithSubtitles(videoID: String) async throws -> YouTubeVideoInfoResponse {
-        guard let url = URL(string: "\(baseURL)/api/youtube-info/\(videoID)") else {
+        let apiURL = "\(baseURL)/api/youtube-info/\(videoID)"
+        
+        print("📡 [API] 请求 URL: \(apiURL)")
+        
+        guard let url = URL(string: apiURL) else {
             throw YouTubeSubtitleError.invalidURL
         }
         
-        let (data, _) = try await URLSession.shared.data(from: url)
+        print("⏳ [API] 发送 HTTP 请求...")
+        let (data, response) = try await URLSession.shared.data(from: url)
         
-        let decoder = JSONDecoder()
-        let response = try decoder.decode(YouTubeVideoInfoResponse.self, from: data)
-        
-        if !response.success {
-            throw YouTubeSubtitleError.serverError(response.error ?? "Unknown error")
+        if let httpResponse = response as? HTTPURLResponse {
+            print("📥 [API] 收到响应: HTTP \(httpResponse.statusCode)")
         }
         
-        return response
+        let decoder = JSONDecoder()
+        let result = try decoder.decode(YouTubeVideoInfoResponse.self, from: data)
+        
+        if !result.success {
+            print("❌ [API] 后端返回错误: \(result.error ?? "Unknown")")
+            throw YouTubeSubtitleError.serverError(result.error ?? "Unknown error")
+        }
+        
+        print("✅ [API] 成功获取视频信息")
+        print("   标题: \(result.title ?? "N/A")")
+        print("   格式数: \(result.formats?.count ?? 0)")
+        print("   字幕数: \(result.subtitles?.count ?? 0)")
+        
+        return result
     }
     
     /// 从字幕 URL 下载 SRT 内容并解析

@@ -40,17 +40,27 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
     private var cancellables = Set<AnyCancellable>()
 
     override init() {
+        print("🎬 [STARTUP] VideoPlayerViewModel init 开始: \(Date())")
         super.init()
         synthesizer.delegate = self
+        print("🎬 [STARTUP] VideoPlayerViewModel init 结束: \(Date())")
     }
     
     /// 加载视频
     func loadVideo(_ video: Video, originalURL: String = "") {
+        print("\n🎯 [ViewModel] loadVideo() 被调用")
+        print("   Video ID: \(video.youtubeVideoID)")
+        print("   Title: \(video.title)")
+        
         // 重置状态
         lastSpokenIndex = nil
         synthesizer.stopSpeaking(at: .immediate)
         
+        // 设置当前视频 - 这会触发 UI 更新
         currentVideo = video
+        print("   ✅ currentVideo 已设置")
+        print("   currentVideo.isYouTube = \(video.isYouTube)")
+        
         originalInputURL = originalURL.isEmpty ? "https://www.youtube.com/watch?v=\(video.youtubeVideoID)" : originalURL
         
         // 只处理 YouTube 视频
@@ -62,33 +72,55 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
     private func loadYouTubeSubtitles(_ video: Video) {
         let videoID = video.youtubeVideoID
         
+        print("\n" + String(repeating: "=", count: 60))
+        print("🎬 开始加载 YouTube 视频")
+        print("📹 Video ID: \(videoID)")
+        print("📡 调用后端 API: /api/youtube-info/\(videoID)")
+        print(String(repeating: "=", count: 60) + "\n")
+        
         isLoadingSubtitles = true
         subtitleError = nil
         
         Task {
             do {
                 // 使用 iiiLab 服务获取完整的视频信息（包括字幕）
+                print("⏳ 正在请求后端 Render API...")
                 let videoInfo = try await YouTubeSubtitleService.shared
                     .fetchVideoInfoWithSubtitles(videoID: videoID)
+                
+                print("✅ 后端 API 返回成功！")
                 
                 // 更新视频标题和格式信息
                 await MainActor.run {
                     if let title = videoInfo.title {
                         self.videoTitle = title
-                        print("📺 视频标题: \(title)")
+                        print("\n📺 视频信息:")
+                        print("   标题: \(title)")
                     }
                     
                     // 保存视频格式信息
                     self.videoFormats = videoInfo.formats ?? []
-                    print("🎬 获取了 \(self.videoFormats.count) 种视频格式")
+                    print("   可用格式: \(self.videoFormats.count) 种")
+                    
+                    // 打印所有可用格式
+                    for (index, format) in self.videoFormats.enumerated() {
+                        print("   [\(index + 1)] \(format.quality) - \(format.format) - 音频:\(format.has_audio ? "有" : "无") - 分离:\(format.separate ? "是" : "否")")
+                    }
                     
                     // 自动选择最佳格式
                     self.selectedFormat = self.selectBestFormat(from: self.videoFormats)
                     
                     // 如果有选中的格式，加载视频
                     if let format = self.selectedFormat {
-                        print("✅ 选择格式: \(format.quality) (\(format.format))")
+                        print("\n✅ 选择的格式:")
+                        print("   质量: \(format.quality)")
+                        print("   格式: \(format.format)")
+                        print("   音频: \(format.has_audio ? "有" : "无")")
+                        print("   播放地址: \(format.video_url.prefix(80))...")
+                        print("\n🎬 开始加载视频...")
                         self.loadVideoFromURL(format.video_url)
+                    } else {
+                        print("\n❌ 未找到合适的播放格式")
                     }
                 }
                 
