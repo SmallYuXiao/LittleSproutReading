@@ -27,6 +27,14 @@ class IIILabYouTubeService:
             'Content-Type': 'application/json',
             'Accept': 'application/json',
         })
+        
+        # 频率控制
+        self.last_request_time = 0
+        self.min_request_interval = 3.0  # 最小请求间隔3秒
+        
+        # 简单内存缓存
+        self.cache = {}
+        self.cache_ttl = 600  # 缓存10分钟
     
     def _generate_signature(self, timestamp: int, url: str, language: str = "en") -> str:
         """
@@ -54,9 +62,27 @@ class IIILabYouTubeService:
         
         return signature
     
+    def _wait_for_rate_limit(self):
+        """等待以满足频率限制"""
+        elapsed = time.time() - self.last_request_time
+        if elapsed < self.min_request_interval:
+            wait_time = self.min_request_interval - elapsed
+            logger.info(f"⏳ 频率限制：等待 {wait_time:.1f} 秒")
+            time.sleep(wait_time)
+        self.last_request_time = time.time()
+    
+    def _get_cache_key(self, youtube_url: str) -> str:
+        """生成缓存键"""
+        # 提取 video ID 作为缓存键
+        import re
+        match = re.search(r'(?:v=|/)([0-9A-Za-z_-]{11})', youtube_url)
+        if match:
+            return f"video_{match.group(1)}"
+        return f"video_{hashlib.md5(youtube_url.encode()).hexdigest()}"
+    
     def extract_video_info(self, youtube_url: str) -> Dict:
         """
-        提取 YouTube 视频信息
+        提取 YouTube 视频信息（带缓存和频率控制）
         
         Args:
             youtube_url: YouTube 视频 URL
@@ -64,6 +90,20 @@ class IIILabYouTubeService:
         Returns:
             包含视频信息的字典
         """
+        # 1. 检查缓存
+        cache_key = self._get_cache_key(youtube_url)
+        if cache_key in self.cache:
+            cached_data, timestamp = self.cache[cache_key]
+            if time.time() - timestamp < self.cache_ttl:
+                logger.info(f"💾 从缓存返回数据（video ID: {cache_key}）")
+                return cached_data
+            else:
+                # 缓存过期
+                del self.cache[cache_key]
+        
+        # 2. 频率限制等待
+        self._wait_for_rate_limit()
+        
         try:
             # 使用毫秒级时间戳（新 API 要求）
             timestamp = int(time.time() * 1000)
@@ -119,10 +159,16 @@ class IIILabYouTubeService:
             
             # API 直接返回数据，没有 code/msg 包装
             if 'text' in data or 'medias' in data:
-                return self._parse_response(data)
+                result = self._parse_response(data)
+                
+                # 3. 保存到缓存
+                self.cache[cache_key] = (result, time.time())
+                logger.info(f"💾 数据已缓存（TTL: {self.cache_ttl}秒）")
+                
+                return result
             else:
                 # 如果有错误信息
-                error_msg = data.get('msg') or data.get('error') or 'Unknown error'
+                error_msg = data.get('msg') or data.get('error') or data.get('message') or 'Unknown error'
                 raise Exception(f"API 返回错误: {error_msg}")
                 
         except requests.exceptions.RequestException as e:

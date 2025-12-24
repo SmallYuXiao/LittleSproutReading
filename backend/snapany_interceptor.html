@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnapAny g-footer 拦截器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        
+        .step {
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 3px solid #764ba2;
+        }
+        
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        .code-box {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            position: relative;
+        }
+        
+        .code-box pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .copy-btn:hover {
+            background: #764ba2;
+            transform: scale(1.05);
+        }
+        
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(118, 75, 162, 0.3);
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .alert-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            color: #0c5460;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+        
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .results.show {
+            display: block;
+        }
+        
+        .result-item {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+        
+        .result-item.match {
+            background: #d4edda;
+            border: 2px solid #28a745;
+        }
+        
+        .icon {
+            margin-right: 8px;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 SnapAny g-footer 拦截器</h1>
+        <p class="subtitle">自动化逆向工程工具 - 一键破解 API 签名算法</p>
+        
+        <div class="section">
+            <h2>📋 使用说明</h2>
+            
+            <div class="step">
+                <span class="step-number">1</span>
+                <strong>复制下方的拦截脚本</strong>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">2</span>
+                <strong>打开 SnapAny 网站：</strong>
+                <a href="https://snapany.com/zh/youtube-1" target="_blank">https://snapany.com/zh/youtube-1</a>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">3</span>
+                <strong>按 F12 打开开发者工具，切换到 Console（控制台）</strong>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">4</span>
+                <strong>粘贴并运行拦截脚本（按回车）</strong>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">5</span>
+                <strong>在 SnapAny 页面输入 YouTube 链接并点击"提取视频图片"</strong>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">6</span>
+                <strong>查看控制台输出的完整调用堆栈和参数信息</strong>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🎯 拦截脚本（点击复制）</h2>
+            
+            <div class="code-box">
+                <button class="copy-btn" onclick="copyScript()">📋 复制脚本</button>
+                <pre id="interceptor-script">// ============================================================
+// SnapAny g-footer 高级拦截脚本
+// ============================================================
+(function() {
+    console.log('%c🎯 SnapAny 拦截器已启动', 'background: #667eea; color: white; padding: 10px; font-size: 16px; font-weight: bold;');
+    
+    const results = {
+        captures: [],
+        functions: []
+    };
+    
+    // ============================================================
+    // 1. 拦截 Fetch API
+    // ============================================================
+    const originalFetch = window.fetch;
+    window.fetch = function(...args) {
+        const [url, options] = args;
+        
+        if (url.includes('api.snapany.com') || url.includes('extract')) {
+            console.log('%c━'.repeat(80), 'color: #667eea');
+            console.log('%c🎯 拦截到 Fetch 请求', 'background: #28a745; color: white; padding: 5px; font-weight: bold;');
+            console.log('URL:', url);
+            console.log('Method:', options?.method);
+            console.log('Headers:', JSON.stringify(options?.headers, null, 2));
+            console.log('Body:', options?.body);
+            
+            if (options?.headers) {
+                const gFooter = options.headers['g-footer'];
+                const gTimestamp = options.headers['g-timestamp'];
+                
+                if (gFooter && gTimestamp) {
+                    const capture = {
+                        timestamp: gTimestamp,
+                        footer: gFooter,
+                        body: options.body,
+                        url: url,
+                        time: new Date().toISOString()
+                    };
+                    
+                    results.captures.push(capture);
+                    
+                    console.log('%c✅ 成功捕获签名数据！', 'background: #28a745; color: white; padding: 5px; font-weight: bold;');
+                    console.log('g-footer:', gFooter);
+                    console.log('g-timestamp:', gTimestamp);
+                    console.log('Body:', options.body);
+                    console.log('%c调用堆栈：', 'color: #667eea; font-weight: bold;');
+                    console.trace();
+                    
+                    // 尝试破解算法
+                    analyzeFooter(capture);
+                }
+            }
+            console.log('%c━'.repeat(80), 'color: #667eea');
+        }
+        
+        return originalFetch.apply(this, args);
+    };
+    
+    // ============================================================
+    // 2. 拦截 XMLHttpRequest
+    // ============================================================
+    const xhrData = new WeakMap();
+    
+    const originalOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+        if (url.includes('api.snapany.com') || url.includes('extract')) {
+            xhrData.set(this, { method, url, headers: {} });
+        }
+        return originalOpen.apply(this, [method, url, ...rest]);
+    };
+    
+    const originalSetRequestHeader = XMLHttpRequest.prototype.setRequestHeader;
+    XMLHttpRequest.prototype.setRequestHeader = function(header, value) {
+        const data = xhrData.get(this);
+        if (data) {
+            data.headers[header] = value;
+            
+            if (header === 'g-footer' || header === 'g-timestamp') {
+                console.log('%c🎯 拦截到 XHR 请求头！', 'background: #ffc107; color: black; padding: 5px; font-weight: bold;');
+                console.log(`${header}:`, value);
+                console.trace();
+            }
+        }
+        return originalSetRequestHeader.apply(this, arguments);
+    };
+    
+    const originalSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function(body) {
+        const data = xhrData.get(this);
+        if (data && (data.headers['g-footer'] || data.headers['g-timestamp'])) {
+            const capture = {
+                timestamp: data.headers['g-timestamp'],
+                footer: data.headers['g-footer'],
+                body: body,
+                url: data.url,
+                time: new Date().toISOString()
+            };
+            
+            results.captures.push(capture);
+            console.log('%c✅ XHR 请求捕获完成', 'background: #28a745; color: white; padding: 5px;');
+            analyzeFooter(capture);
+        }
+        return originalSend.apply(this, arguments);
+    };
+    
+    // ============================================================
+    // 3. 算法分析函数
+    // ============================================================
+    function analyzeFooter(capture) {
+        console.log('%c━'.repeat(80), 'color: #764ba2');
+        console.log('%c🧪 开始算法分析...', 'background: #667eea; color: white; padding: 5px; font-weight: bold;');
+        
+        const { timestamp, footer, body } = capture;
+        let parsedBody = body;
+        
+        try {
+            parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
+        } catch (e) {}
+        
+        const link = parsedBody?.link || '';
+        const videoId = link.match(/v=([^&]+)/)?.[1] || '';
+        
+        console.log('📊 测试数据：');
+        console.log('  - Timestamp:', timestamp);
+        console.log('  - Footer:', footer);
+        console.log('  - Link:', link);
+        console.log('  - Video ID:', videoId);
+        console.log('  - Footer 长度:', footer.length, '字符');
+        
+        // 判断哈希类型
+        let hashType = 'Unknown';
+        if (footer.length === 32) hashType = 'MD5';
+        else if (footer.length === 40) hashType = 'SHA1';
+        else if (footer.length === 64) hashType = 'SHA256';
+        
+        console.log('  - 推测哈希类型:', hashType);
+        
+        // 测试常见组合
+        const testCases = [
+            { name: 'timestamp', value: timestamp },
+            { name: 'link', value: link },
+            { name: 'videoId', value: videoId },
+            { name: 'timestamp + link', value: timestamp + link },
+            { name: 'link + timestamp', value: link + timestamp },
+            { name: 'timestamp + videoId', value: timestamp + videoId },
+            { name: 'timestamp:link', value: `${timestamp}:${link}` },
+            { name: 'JSON body', value: body },
+            { name: 'timestamp + body', value: timestamp + body },
+        ];
+        
+        console.log('%c💡 可能的输入组合：', 'color: #667eea; font-weight: bold;');
+        testCases.forEach((test, i) => {
+            console.log(`  ${i + 1}. ${test.name}: "${test.value}"`);
+        });
+        
+        console.log('%c━'.repeat(80), 'color: #764ba2');
+        console.log('%c📋 复制以下数据用于 Python 测试：', 'background: #17a2b8; color: white; padding: 5px; font-weight: bold;');
+        console.log('TEST_LINK = "' + link + '"');
+        console.log('TEST_TIMESTAMP = ' + timestamp);
+        console.log('ACTUAL_G_FOOTER = "' + footer + '"');
+        console.log('%c━'.repeat(80), 'color: #764ba2');
+    }
+    
+    // ============================================================
+    // 4. 搜索可疑函数
+    // ============================================================
+    console.log('%c🔎 搜索全局作用域中的可疑函数...', 'color: #667eea; font-weight: bold;');
+    const suspiciousKeys = [];
+    
+    for (let key in window) {
+        const lowercaseKey = key.toLowerCase();
+        if (lowercaseKey.includes('footer') || 
+            lowercaseKey.includes('sign') || 
+            lowercaseKey.includes('signature') ||
+            lowercaseKey.includes('hash') ||
+            lowercaseKey.includes('md5') ||
+            lowercaseKey.includes('sha') ||
+            lowercaseKey.includes('encrypt') ||
+            lowercaseKey.includes('crypto')) {
+            
+            suspiciousKeys.push({ key, type: typeof window[key] });
+            console.log(`  🚨 ${key} (${typeof window[key]})`);
+            
+            if (typeof window[key] === 'function') {
+                try {
+                    console.log('    源码:', window[key].toString().substring(0, 200) + '...');
+                } catch (e) {}
+            }
+        }
+    }
+    
+    results.functions = suspiciousKeys;
+    
+    if (suspiciousKeys.length === 0) {
+        console.log('  ℹ️  未发现明显的签名相关函数（可能被混淆）');
+    }
+    
+    // ============================================================
+    // 5. 提供辅助函数
+    // ============================================================
+    window.snapanyDebug = {
+        getCaptures: () => results.captures,
+        getFunctions: () => results.functions,
+        getLatest: () => results.captures[results.captures.length - 1],
+        clear: () => { results.captures = []; results.functions = []; },
+        help: () => {
+            console.log('%c━'.repeat(80), 'color: #667eea');
+            console.log('%c📚 可用的调试命令：', 'background: #667eea; color: white; padding: 5px; font-weight: bold;');
+            console.log('  snapanyDebug.getCaptures()  - 获取所有捕获的数据');
+            console.log('  snapanyDebug.getLatest()    - 获取最新捕获的数据');
+            console.log('  snapanyDebug.getFunctions() - 获取可疑函数列表');
+            console.log('  snapanyDebug.clear()        - 清空捕获记录');
+            console.log('  snapanyDebug.help()         - 显示此帮助');
+            console.log('%c━'.repeat(80), 'color: #667eea');
+        }
+    };
+    
+    console.log('%c✅ 拦截器安装完成！', 'background: #28a745; color: white; padding: 10px; font-size: 16px; font-weight: bold;');
+    console.log('%c💡 提示：输入 snapanyDebug.help() 查看可用命令', 'color: #667eea; font-weight: bold;');
+    console.log('%c🚀 现在可以在网站上测试了！', 'color: #667eea; font-weight: bold;');
+})();</pre>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>⚠️ 重要提示</h2>
+            <div class="alert alert-warning">
+                <strong>⚠️ 法律与道德声明：</strong><br>
+                本工具仅供学习和研究目的使用。逆向工程可能违反服务条款或相关法律法规。使用前请确保：
+                <ul style="margin: 10px 0 0 20px;">
+                    <li>仅用于个人学习和测试</li>
+                    <li>不用于商业目的</li>
+                    <li>遵守当地法律法规</li>
+                    <li>尊重服务提供商的权益</li>
+                </ul>
+            </div>
+            
+            <div class="alert alert-info">
+                <strong>💡 建议的合法途径：</strong><br>
+                如需商业使用，请联系 SnapAny 官方：
+                <ul style="margin: 10px 0 0 20px;">
+                    <li>📧 Email: hi@iiilab.com</li>
+                    <li>🌐 Website: https://snapany.com/</li>
+                    <li>申请官方 API 密钥和文档</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📖 预期输出</h2>
+            <p>运行脚本后，当你在 SnapAny 网站上提取视频时，控制台会显示：</p>
+            <ul style="margin: 15px 0 0 20px; line-height: 2;">
+                <li>✅ 捕获的 <code>g-footer</code> 和 <code>g-timestamp</code> 值</li>
+                <li>📊 详细的请求参数分析</li>
+                <li>🔍 调用堆栈（找出生成签名的函数位置）</li>
+                <li>💡 可能的输入参数组合</li>
+                <li>📋 Python 测试代码（可直接复制使用）</li>
+            </ul>
+        </div>
+        
+        <footer>
+            <p>🔧 Created for educational purposes only | 仅供学习使用</p>
+            <p style="margin-top: 10px;">© 2025 LittleSprout Reading Project</p>
+        </footer>
+    </div>
+    
+    <script>
+        function copyScript() {
+            const script = document.getElementById('interceptor-script').textContent;
+            navigator.clipboard.writeText(script).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ 已复制！';
+                btn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#667eea';
+                }, 2000);
+            }).catch(err => {
+                alert('复制失败，请手动选择并复制');
+                console.error('复制失败:', err);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -26,8 +26,10 @@ struct YouTubeWebView: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
         
-        // 加载 Ariannita la Gringa 频道搜索结果
-        if let url = URL(string: "https://www.youtube.com/results?search_query=Ariannita+la+Gringa") {
+        // 使用搜索语法排除 Shorts：加 -"#shorts" -shorts
+        let searchQuery = "english learning -\"#shorts\" -shorts"
+        let encodedQuery = searchQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? searchQuery
+        if let url = URL(string: "https://www.youtube.com/results?search_query=\(encodedQuery)") {
             let request = URLRequest(url: url)
             webView.load(request)
         }
@@ -83,18 +85,52 @@ struct YouTubeWebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             print("✅ [WebView] 页面加载完成")
             
-            // 注入 CSS 来隐藏 YouTube 的播放器控制（可选）
-            let hidePlayerScript = """
-            var style = document.createElement('style');
-            style.innerHTML = `
-                /* 可以在这里添加自定义样式 */
-            `;
-            document.head.appendChild(style);
+            // 注入 JavaScript 禁用悬停自动播放
+            let disableHoverPlayScript = """
+            (function() {
+                // 禁用 YouTube 的悬停自动播放功能
+                var style = document.createElement('style');
+                style.innerHTML = `
+                    /* 禁用视频缩略图的悬停播放 */
+                    ytd-thumbnail video,
+                    ytd-moving-thumbnail-renderer video,
+                    ytd-video-preview video {
+                        display: none !important;
+                        pointer-events: none !important;
+                    }
+                    
+                    /* 禁用悬停时的动画效果 */
+                    ytd-thumbnail:hover video {
+                        opacity: 0 !important;
+                    }
+                    
+                    /* 确保静态缩略图始终显示 */
+                    ytd-thumbnail img {
+                        display: block !important;
+                        opacity: 1 !important;
+                    }
+                `;
+                document.head.appendChild(style);
+                
+                // 阻止视频元素加载和播放
+                setInterval(function() {
+                    var videos = document.querySelectorAll('ytd-thumbnail video, ytd-moving-thumbnail-renderer video');
+                    videos.forEach(function(video) {
+                        video.pause();
+                        video.removeAttribute('src');
+                        video.load();
+                    });
+                }, 500);
+                
+                console.log('🚫 YouTube 悬停自动播放已禁用');
+            })();
             """
             
-            webView.evaluateJavaScript(hidePlayerScript) { result, error in
+            webView.evaluateJavaScript(disableHoverPlayScript) { result, error in
                 if let error = error {
                     print("❌ [WebView] 注入脚本失败: \(error.localizedDescription)")
+                } else {
+                    print("✅ [WebView] 已禁用悬停自动播放")
                 }
             }
         }
@@ -106,7 +142,7 @@ struct YouTubeWebView: UIViewRepresentable {
     }
 }
 
-/// YouTube Web 浏览视图（带导航栏）
+/// YouTube Web 浏览视图（全屏原生风格）
 struct YouTubeWebBrowserView: View {
     @ObservedObject var viewModel: VideoPlayerViewModel
     @State private var canGoBack = false
@@ -116,23 +152,19 @@ struct YouTubeWebBrowserView: View {
     @State private var savedScrollPosition: CGPoint = .zero  // 保存滚动位置
     
     var body: some View {
-        VStack(spacing: 0) {
-            // 顶部导航栏
-            navigationBar
-            
-            // WebView 内容
-            YouTubeWebViewWithControls(
-                viewModel: viewModel,
-                canGoBack: $canGoBack,
-                canGoForward: $canGoForward,
-                isLoading: $isLoading,
-                webView: $webView,
-                savedScrollPosition: $savedScrollPosition
-            )
-        }
+        // 全屏 WebView，不需要导航栏，更像原生应用
+        YouTubeWebViewWithControls(
+            viewModel: viewModel,
+            canGoBack: $canGoBack,
+            canGoForward: $canGoForward,
+            isLoading: $isLoading,
+            webView: $webView,
+            savedScrollPosition: $savedScrollPosition
+        )
         .background(Color.black)
+        .ignoresSafeArea()  // 忽略安全区域，顶部和底部贴合屏幕，更像原生应用
         .onAppear {
-            print("🖥️ [WebView] WebView 视图出现")
+            print("🖥️ [WebView] WebView 视图出现（全屏原生风格）")
             // 重置恢复标志，允许下次返回时再次恢复
             if let wv = webView, let delegate = wv.navigationDelegate as? YouTubeWebViewWithControls.Coordinator {
                 delegate.hasRestoredPosition = false
@@ -167,56 +199,6 @@ struct YouTubeWebBrowserView: View {
                 }
             }
         }
-    }
-    
-    // MARK: - 导航栏
-    private var navigationBar: some View {
-        HStack(spacing: 16) {
-            // 返回按钮
-            Button(action: {
-                webView?.goBack()
-            }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(canGoBack ? .white : .gray)
-            }
-            .disabled(!canGoBack)
-            
-            // 前进按钮
-            Button(action: {
-                webView?.goForward()
-            }) {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(canGoForward ? .white : .gray)
-            }
-            .disabled(!canGoForward)
-            
-            Spacer()
-            
-            // 刷新按钮
-            Button(action: {
-                webView?.reload()
-            }) {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 18))
-                    .foregroundColor(.white)
-            }
-            
-            // 回到首页按钮（Ariannita la Gringa 频道）
-            Button(action: {
-                if let url = URL(string: "https://www.youtube.com/results?search_query=Ariannita+la+Gringa") {
-                    webView?.load(URLRequest(url: url))
-                }
-            }) {
-                Image(systemName: "house")
-                    .font(.system(size: 18))
-                    .foregroundColor(.white)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.black.opacity(0.95))
     }
 }
 
@@ -344,9 +326,13 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
         
         // 只在第一次创建时加载首页
         if !Self.hasLoadedInitialPage {
-            if let url = URL(string: "https://www.youtube.com/results?search_query=Ariannita+la+Gringa") {
+            let searchQuery = "english news talks interview speech"
+            let encodedQuery = searchQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? searchQuery
+            
+            if let url = URL(string: "https://www.youtube.com/results?search_query=\(encodedQuery)") {
                 let request = URLRequest(url: url)
                 print("🌐 [WebView] 首次加载首页: \(url.absoluteString)")
+                print("🔍 搜索关键词: english news talks interview speech")
                 webView.load(request)
                 Self.hasLoadedInitialPage = true
             }
@@ -461,7 +447,52 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
             
             print("✅ [WebView] 页面加载完成，准备注入拦截脚本...")
             
-            // 注入 JavaScript 来拦截视频点击
+            // 首先注入禁用悬停播放的脚本
+            let disableHoverPlayScript = """
+            (function() {
+                // 禁用 YouTube 的悬停自动播放功能
+                var style = document.createElement('style');
+                style.innerHTML = `
+                    /* 禁用视频缩略图的悬停播放 */
+                    ytd-thumbnail video,
+                    ytd-moving-thumbnail-renderer video,
+                    ytd-video-preview video {
+                        display: none !important;
+                        pointer-events: none !important;
+                    }
+                    
+                    /* 禁用悬停时的动画效果 */
+                    ytd-thumbnail:hover video {
+                        opacity: 0 !important;
+                    }
+                    
+                    /* 确保静态缩略图始终显示 */
+                    ytd-thumbnail img {
+                        display: block !important;
+                        opacity: 1 !important;
+                    }
+                `;
+                document.head.appendChild(style);
+                
+                // 阻止视频元素加载和播放
+                setInterval(function() {
+                    var videos = document.querySelectorAll('ytd-thumbnail video, ytd-moving-thumbnail-renderer video');
+                    videos.forEach(function(video) {
+                        video.pause();
+                        video.removeAttribute('src');
+                        video.load();
+                    });
+                }, 500);
+                
+                console.log('🚫 YouTube 悬停自动播放已禁用');
+            })();
+            """
+            
+            webView.evaluateJavaScript(disableHoverPlayScript) { _, _ in
+                print("✅ [WebView] 已禁用悬停自动播放")
+            }
+            
+            // 然后注入 JavaScript 来拦截视频点击
             let interceptScript = """
             (function() {
                 console.log('🔧 YouTube 拦截脚本已注入');

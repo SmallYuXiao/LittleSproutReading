@@ -13,6 +13,7 @@ class WordDefinition: Identifiable, Codable {
     let word: String
     let phonetic: String?
     let definitions: [Definition]
+    let examples: [String]  // 例句列表
     var isFavorite: Bool = false
     
     struct Definition: Codable {
@@ -21,13 +22,14 @@ class WordDefinition: Identifiable, Codable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case word, phonetic, definitions, isFavorite
+        case word, phonetic, definitions, examples, isFavorite
     }
     
-    init(word: String, phonetic: String?, definitions: [Definition], isFavorite: Bool = false) {
+    init(word: String, phonetic: String?, definitions: [Definition], examples: [String] = [], isFavorite: Bool = false) {
         self.word = word
         self.phonetic = phonetic
         self.definitions = definitions
+        self.examples = examples
         self.isFavorite = isFavorite
     }
     
@@ -36,6 +38,7 @@ class WordDefinition: Identifiable, Codable {
         word = try container.decode(String.self, forKey: .word)
         phonetic = try container.decodeIfPresent(String.self, forKey: .phonetic)
         definitions = try container.decode([Definition].self, forKey: .definitions)
+        examples = try container.decodeIfPresent([String].self, forKey: .examples) ?? []
         isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
     }
 }

@@ -66,17 +66,22 @@ YouTubeWebBrowserView(viewModel: viewModel)
 
 ## 使用流程
 
-1. **启动应用** → 自动搜索并加载 "Ariannita la Gringa" 频道内容
-2. **浏览视频** → 可以继续搜索、浏览其他推荐视频
+1. **启动应用** → 自动搜索并加载英语学习相关内容
+2. **浏览视频** → 新闻、演讲、采访等多种学习资源
 3. **点击视频** → 自动拦截，跳转到应用播放器
 4. **开始学习** → 播放视频并显示字幕
 5. **返回首页** → 点击"返回"按钮回到 YouTube 浏览页面
 
-## 默认频道
+## 默认搜索内容
 
-应用默认加载 **Ariannita la Gringa** 频道的搜索结果：
-- URL: `https://www.youtube.com/results?search_query=Ariannita+la+Gringa`
-- 点击导航栏的"首页"图标也会回到此频道
+应用默认加载英语学习相关内容：
+- **搜索关键词**: `english news talks interview speech`
+- **内容类型**: 
+  - 📰 英语新闻
+  - 🎤 TED Talks 演讲
+  - 💬 人物访谈
+  - 🗣️ 公开演讲
+- 点击导航栏的"首页"图标会回到此搜索结果
 
 ## 技术要点
 

@@ -62,6 +62,57 @@ struct VideoPlayerView: View {
                         }
                     }
                 }
+                
+                // 错误提示覆盖层
+                if let error = viewModel.subtitleError {
+                    VStack(spacing: 24) {
+                        // 错误图标
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.red)
+                        
+                        // 错误信息
+                        VStack(spacing: 12) {
+                            Text("加载失败")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                            
+                            Text(error)
+                                .font(.body)
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 40)
+                            
+                            Text("3秒后自动返回...")
+                                .font(.caption)
+                                .foregroundColor(.gray.opacity(0.7))
+                                .padding(.top, 8)
+                        }
+                        
+                        // 手动返回按钮
+                        Button(action: {
+                            print("👆 [VideoPlayer] 用户点击立即返回")
+                            viewModel.currentVideo = nil
+                            viewModel.subtitles = []
+                            viewModel.subtitleError = nil
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "arrow.left")
+                                Text("立即返回")
+                            }
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                            .background(Color.green)
+                            .cornerRadius(25)
+                        }
+                        .padding(.top, 16)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black.opacity(0.95))
+                }
             }
             .contentShape(Rectangle())  // 让整个区域可点击
             .onTapGesture {

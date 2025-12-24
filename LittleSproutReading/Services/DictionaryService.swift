@@ -74,11 +74,15 @@ class DictionaryService: ObservableObject {
           "definitions": [
             {
               "partOfSpeech": "词性(如 n., v., adj.)",
-              "meanings": ["释义1", "释义2"]
+              "meanings": ["主要释义"]
             }
-          ]
+          ],
+          "examples": ["例句1", "例句2"]
         }
-        只返回JSON,不要其他内容。
+        要求：
+        1. 只返回1个词性的1个主要释义
+        2. 提供2个简短易懂的英文例句
+        3. 只返回JSON,不要其他内容
         """
         
         let body: [String: Any] = [

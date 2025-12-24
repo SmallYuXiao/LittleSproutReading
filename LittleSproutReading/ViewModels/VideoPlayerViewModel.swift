@@ -211,9 +211,18 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
                 
             } catch {
                 await MainActor.run {
-                    self.subtitleError = "字幕加载失败: \(error.localizedDescription)"
+                    let errorMsg = "视频加载失败: \(error.localizedDescription)"
+                    self.subtitleError = errorMsg
                     self.isLoadingSubtitles = false
                     print("❌ 字幕加载失败: \(error.localizedDescription)")
+                    
+                    // 延迟 3 秒后自动返回
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                        print("⏰ [ViewModel] 3秒后自动返回 WebView")
+                        self.currentVideo = nil
+                        self.subtitles = []
+                        self.subtitleError = nil
+                    }
                 }
             }
         }
@@ -326,9 +335,12 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
             .store(in: &cancellables)
     }
     
-    /// 设置时间监听器(每0.1秒更新一次)
+    /// 设置时间监听器(每0.033秒更新一次，约30fps，更平滑)
     private func setupTimeObserver() {
-        let interval = CMTime(seconds: 0.1, preferredTimescale: 600)
+        // 使用更短的更新间隔，让进度条更精确、更流畅
+        // 0.033秒 ≈ 30fps，人眼感知流畅
+        // preferredTimescale 设置为 600 确保时间精度
+        let interval = CMTime(seconds: 0.033, preferredTimescale: 600)
         timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             self?.currentTime = time.seconds
             self?.updateCurrentSubtitle()

@@ -72,9 +72,10 @@ struct ContentView: View {
                             .frame(width: geometry.size.width, height: geometry.size.height)
                         }
                     } else {
-                        let _ = print("🖥️ [ContentView] 显示 WebView 浏览页面")
-                        // YouTube Web 浏览页面（全屏）
+                        let _ = print("🖥️ [ContentView] 显示 WebView 浏览页面（全屏原生风格）")
+                        // YouTube Web 浏览页面（全屏，顶部和底部贴合屏幕）
                         YouTubeWebBrowserView(viewModel: viewModel)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
                 .offset(x: dragOffset)

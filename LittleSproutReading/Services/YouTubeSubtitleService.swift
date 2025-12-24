@@ -229,12 +229,26 @@ extension YouTubeSubtitleService {
         
         let (data, _) = try await URLSession.shared.data(from: url)
         
-        guard let srtContent = String(data: data, encoding: .utf8) else {
+        guard let content = String(data: data, encoding: .utf8) else {
             throw YouTubeSubtitleError.parseError
         }
         
-        // 解析 SRT 字幕
-        return SubtitleParser.parseSRT(content: srtContent)
+        // 🔍 调试：打印原始字幕内容的前500个字符
+        print("📄 原始字幕内容预览:")
+        print(content.prefix(500))
+        print("=" + String(repeating: "=", count: 60))
+        
+        // 🎯 自动检测字幕格式并解析
+        if content.contains("WEBVTT") || content.contains("Kind:") {
+            print("✅ 检测到 VTT 格式字幕")
+            return SubtitleParser.parseVTT(content: content)
+        } else if content.contains("<?xml") || content.contains("<transcript") || content.contains("<timedtext") {
+            print("✅ 检测到 XML 格式字幕")
+            return SubtitleParser.parseXML(content: content)
+        } else {
+            print("✅ 检测到 SRT 格式字幕（或默认）")
+            return SubtitleParser.parseSRT(content: content)
+        }
     }
 }
 
