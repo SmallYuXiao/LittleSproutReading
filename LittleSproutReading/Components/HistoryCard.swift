@@ -39,7 +39,6 @@ struct HistoryCard: View {
             
             // 删除按钮
             Button(action: {
-                print("🗑️ 删除按钮被点击")
                 onDelete()
             }) {
                 Image(systemName: "trash")

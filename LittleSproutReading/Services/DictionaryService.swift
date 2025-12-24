@@ -30,7 +30,6 @@ class DictionaryService: ObservableObject {
             self.baseURL = ProcessInfo.processInfo.environment["VVEAI_API_BASE_URL"] ?? "https://api.vveai.com/v1"
         }
         
-        print("🔑 API Key配置: \(apiKey.isEmpty ? "未配置" : "已配置(\(apiKey.prefix(10))...)")")
         
         loadFavorites()
     }
@@ -41,7 +40,6 @@ class DictionaryService: ObservableObject {
         
         // 检查缓存
         if let cached = cache.object(forKey: cleanWord as NSString) {
-            print("✅ 从缓存获取: \(cleanWord)")
             return cached
         }
         
@@ -77,16 +75,18 @@ class DictionaryService: ObservableObject {
               "meanings": ["主要释义"]
             }
           ],
-          "examples": ["例句1", "例句2"]
+          "examples": ["例句1", "例句2"],
+          "chineseTranslation": "中文翻译"
         }
         要求：
         1. 只返回1个词性的1个主要释义
         2. 提供2个简短易懂的英文例句
-        3. 只返回JSON,不要其他内容
+        3. chineseTranslation 只返回简洁的中文翻译(1-3个词)
+        4. 只返回JSON,不要其他内容
         """
         
         let body: [String: Any] = [
-            "model": "gpt-3.5-turbo",
+            "model": "gpt-4o-mini",
             "messages": [
                 ["role": "user", "content": prompt]
             ],
@@ -95,44 +95,34 @@ class DictionaryService: ObservableObject {
         
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
-        print("🌐 开始查询单词: \(word)")
-        print("📡 API URL: \(url)")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
-            print("❌ 无效的HTTP响应")
             throw DictionaryError.networkError
         }
         
-        print("📊 HTTP状态码: \(httpResponse.statusCode)")
         
         guard (200...299).contains(httpResponse.statusCode) else {
-            print("❌ HTTP错误: \(httpResponse.statusCode)")
             if let errorString = String(data: data, encoding: .utf8) {
-                print("错误详情: \(errorString)")
             }
             throw DictionaryError.networkError
         }
         
         // 打印原始响应
         if let responseString = String(data: data, encoding: .utf8) {
-            print("📥 API原始响应: \(responseString.prefix(500))")
         }
         
         // 解析AI响应
         do {
             let aiResponse = try JSONDecoder().decode(AITranslationResponse.self, from: data)
             guard let content = aiResponse.choices.first?.message.content else {
-                print("❌ AI响应中没有content")
                 throw DictionaryError.invalidResponse
             }
             
-            print("📝 AI返回内容: \(content)")
             
             // 从AI返回的JSON中提取WordDefinition
             guard let jsonData = content.data(using: .utf8) else {
-                print("❌ 无法将content转换为Data")
                 throw DictionaryError.invalidResponse
             }
             
@@ -141,21 +131,32 @@ class DictionaryService: ObservableObject {
             // 检查是否已收藏
             definition.isFavorite = favorites.contains(word)
             
-            print("✅ 成功解析单词定义")
             return definition
         } catch {
-            print("❌ 解析错误: \(error)")
-            print("错误详情: \(error.localizedDescription)")
             throw DictionaryError.invalidResponse
         }
     }
     
-    /// 朗读单词
-    func pronounce(_ word: String) {
-        let utterance = AVSpeechUtterance(string: word)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        utterance.rate = 0.5
-        synthesizer.speak(utterance)
+    /// 朗读单词/例句（防空字符串，统一音频会话）
+    func pronounce(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        
+        DispatchQueue.main.async {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            try? session.setActive(true, options: .notifyOthersOnDeactivation)
+            
+            // 停止当前朗读，避免叠音和空缓冲
+            if self.synthesizer.isSpeaking {
+                self.synthesizer.stopSpeaking(at: .immediate)
+            }
+            
+            let utterance = AVSpeechUtterance(string: trimmed)
+            utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+            utterance.rate = 0.48
+            self.synthesizer.speak(utterance)
+        }
     }
     
     /// 切换收藏状态

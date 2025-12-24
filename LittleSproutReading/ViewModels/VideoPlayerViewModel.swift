@@ -40,17 +40,12 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
     private var cancellables = Set<AnyCancellable>()
 
     override init() {
-        print("🎬 [STARTUP] VideoPlayerViewModel init 开始: \(Date())")
         super.init()
         synthesizer.delegate = self
-        print("🎬 [STARTUP] VideoPlayerViewModel init 结束: \(Date())")
     }
     
     /// 加载视频
     func loadVideo(_ video: Video, originalURL: String = "") {
-        print("\n🎯 [ViewModel] loadVideo() 被调用")
-        print("   Video ID: \(video.youtubeVideoID)")
-        print("   Title: \(video.title)")
         
         // 重置状态
         lastSpokenIndex = nil
@@ -58,8 +53,6 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
         
         // 设置当前视频 - 这会触发 UI 更新
         currentVideo = video
-        print("   ✅ currentVideo 已设置")
-        print("   currentVideo.isYouTube = \(video.isYouTube)")
         
         originalInputURL = originalURL.isEmpty ? "https://www.youtube.com/watch?v=\(video.youtubeVideoID)" : originalURL
         
@@ -72,11 +65,6 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
     private func loadYouTubeSubtitles(_ video: Video) {
         let videoID = video.youtubeVideoID
         
-        print("\n" + String(repeating: "=", count: 60))
-        print("🎬 开始加载 YouTube 视频")
-        print("📹 Video ID: \(videoID)")
-        print("📡 调用后端 API: /api/youtube-info/\(videoID)")
-        print(String(repeating: "=", count: 60) + "\n")
         
         isLoadingSubtitles = true
         subtitleError = nil
@@ -84,27 +72,21 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
         Task {
             do {
                 // 使用 iiiLab 服务获取完整的视频信息（包括字幕）
-                print("⏳ 正在请求后端 Render API...")
                 let videoInfo = try await YouTubeSubtitleService.shared
                     .fetchVideoInfoWithSubtitles(videoID: videoID)
                 
-                print("✅ 后端 API 返回成功！")
                 
                 // 更新视频标题和格式信息
                 await MainActor.run {
                     if let title = videoInfo.title {
                         self.videoTitle = title
-                        print("\n📺 视频信息:")
-                        print("   标题: \(title)")
                     }
                     
                     // 保存视频格式信息
                     self.videoFormats = videoInfo.formats ?? []
-                    print("   可用格式: \(self.videoFormats.count) 种")
                     
                     // 打印所有可用格式
                     for (index, format) in self.videoFormats.enumerated() {
-                        print("   [\(index + 1)] \(format.quality) - \(format.format) - 音频:\(format.has_audio ? "有" : "无") - 分离:\(format.separate ? "是" : "否")")
                     }
                     
                     // 自动选择最佳格式
@@ -112,15 +94,8 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
                     
                     // 如果有选中的格式，加载视频
                     if let format = self.selectedFormat {
-                        print("\n✅ 选择的格式:")
-                        print("   质量: \(format.quality)")
-                        print("   格式: \(format.format)")
-                        print("   音频: \(format.has_audio ? "有" : "无")")
-                        print("   播放地址: \(format.video_url.prefix(80))...")
-                        print("\n🎬 开始加载视频...")
                         self.loadVideoFromURL(format.video_url)
                     } else {
-                        print("\n❌ 未找到合适的播放格式")
                     }
                 }
                 
@@ -142,45 +117,44 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
                         $0.language_name.contains("中文")
                     })
                     
-                    print("📝 找到字幕: 英文=\(englishSubtitle != nil), 中文=\(chineseSubtitle != nil)")
                 }
+                
                 
                 // 下载字幕
                 var englishSubs: [Subtitle] = []
                 var chineseSubs: [Subtitle] = []
                 
                 if let english = englishSubtitle {
-                    print("⬇️ 下载英文字幕: \(english.language_name)")
                     englishSubs = try await YouTubeSubtitleService.shared
                         .downloadSubtitleContent(from: english.url)
                 }
                 
                 if let chinese = chineseSubtitle {
-                    print("⬇️ 下载原生中文字幕: \(chinese.language_name)")
                     chineseSubs = try await YouTubeSubtitleService.shared
                         .downloadSubtitleContent(from: chinese.url)
                 } else {
-                    // 三级回退逻辑
+                    // 四级回退逻辑
                     
                     // 1. 尝试使用后端翻译接口 (youtube-transcript-api)
-                    print("🔄 尝试后端自动翻译 (1/2)...")
                     do {
                         chineseSubs = try await YouTubeSubtitleService.shared
                             .fetchSubtitles(videoID: videoID, language: "zh")
-                        print("✅ 后端自动翻译成功")
                     } catch {
-                        print("⚠️ 后端自动翻译失败: \(error.localizedDescription)")
                         
-                        // 2. 尝试 Smart URL 翻译 (利用 iiilab 提供的 YouTube 直接链接)
-                        if let english = englishSubtitle, english.url.contains("youtube.com/api/timedtext") {
-                            print("🔄 尝试 Smart URL 直接翻译 (2/2)...")
-                            let translatedURL = english.url + "&tlang=zh-Hans"
-                            do {
-                                chineseSubs = try await YouTubeSubtitleService.shared
-                                    .downloadSubtitleContent(from: translatedURL)
-                                print("✅ Smart URL 翻译成功")
-                            } catch {
-                                print("❌ 所有翻译尝试均已失败")
+                        // 2. 尝试使用时间戳API (新增备选方案)
+                        do {
+                            chineseSubs = try await YouTubeSubtitleService.shared
+                                .fetchSubtitlesWithTimestamps(videoID: videoID, languages: ["zh", "zh-Hans"])
+                        } catch {
+                            
+                            // 3. 尝试 Smart URL 翻译 (利用 iiilab 提供的 YouTube 直接链接)
+                            if let english = englishSubtitle, english.url.contains("youtube.com/api/timedtext") {
+                                let translatedURL = english.url + "&tlang=zh-Hans"
+                                do {
+                                    chineseSubs = try await YouTubeSubtitleService.shared
+                                        .downloadSubtitleContent(from: translatedURL)
+                                } catch {
+                                }
                             }
                         }
                     }
@@ -189,10 +163,15 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
                 // 合并字幕
                 let mergedSubtitles = self.mergeSubtitles(english: englishSubs, chinese: chineseSubs)
                 
+                
                 await MainActor.run {
                     self.subtitles = mergedSubtitles
-                    print("✅ 加载了 \(mergedSubtitles.count) 条双语字幕")
                     self.isLoadingSubtitles = false
+                    
+                    // 如果没有字幕,显示提示但不阻止播放
+                    if mergedSubtitles.isEmpty {
+                        self.subtitleError = "该视频暂无字幕,但您仍可以观看视频"
+                    }
                     
                     // 保存到历史记录
                     if let title = self.videoTitle, let video = self.currentVideo {
@@ -205,23 +184,21 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
                     }
                 }
                 
-                if mergedSubtitles.isEmpty {
-                    throw YouTubeSubtitleError.noSubtitles
-                }
-                
             } catch {
                 await MainActor.run {
-                    let errorMsg = "视频加载失败: \(error.localizedDescription)"
-                    self.subtitleError = errorMsg
+                    // 字幕加载失败,但允许视频播放
+                    self.subtitleError = "字幕加载失败,但您仍可以观看视频"
                     self.isLoadingSubtitles = false
-                    print("❌ 字幕加载失败: \(error.localizedDescription)")
+                    self.subtitles = []
                     
-                    // 延迟 3 秒后自动返回
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                        print("⏰ [ViewModel] 3秒后自动返回 WebView")
-                        self.currentVideo = nil
-                        self.subtitles = []
-                        self.subtitleError = nil
+                    // 保存到历史记录(即使没有字幕)
+                    if let title = self.videoTitle, let video = self.currentVideo {
+                        let history = VideoHistory(
+                            videoID: video.youtubeVideoID,
+                            title: title,
+                            originalURL: self.originalInputURL
+                        )
+                        self.historyManager.addHistory(history)
                     }
                 }
             }
@@ -271,25 +248,21 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
         if !notSeparateFormats.isEmpty {
             // 在不分离的格式中，选择质量最高的
             let sorted = notSeparateFormats.sorted { $0.quality_value > $1.quality_value }
-            print("📺 选择不分离的格式: \(sorted.first?.quality ?? "unknown")")
             return sorted.first
         }
         
         // 如果没有不分离的格式，暂时返回 nil
         // TODO: 未来可以实现音视频合并功能
-        print("⚠️ 所有格式都是音视频分离的，AVPlayer 无法直接播放")
         return nil
     }
     
     /// 从 URL 加载视频
     func loadVideoFromURL(_ urlString: String) {
         guard let url = URL(string: urlString) else {
-            print("❌ 无效的视频 URL")
             subtitleError = "无效的视频 URL"
             return
         }
         
-        print("🎬 加载视频 URL: \(urlString.prefix(100))...")
         
         // 重置视频就绪状态
         isVideoReady = false
@@ -305,17 +278,14 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
             .sink { [weak self] status in
                 switch status {
                 case .readyToPlay:
-                    print("✅ 视频就绪，可以播放")
                     self?.isVideoReady = true
                     // 自动播放视频
                     self?.player?.play()
                     self?.isPlaying = true
                 case .failed:
-                    print("❌ 视频加载失败: \(playerItem.error?.localizedDescription ?? "Unknown error")")
                     self?.isVideoReady = false
                     self?.subtitleError = "视频加载失败"
                 case .unknown:
-                    print("⏳ 视频状态: 未知")
                     self?.isVideoReady = false
                 @unknown default:
                     break
@@ -329,7 +299,6 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
                 let seconds = duration.seconds
                 if seconds.isFinite && seconds > 0 {
                     self?.duration = seconds
-                    print("⏱️ 视频时长: \(Int(seconds))秒")
                 }
             }
             .store(in: &cancellables)
@@ -379,7 +348,6 @@ class VideoPlayerViewModel: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
     func adjustSubtitleOffset(by delta: Double) {
         subtitleOffset += delta
         updateCurrentSubtitle()
-        print("📊 字幕偏移: \(String(format: "%.1f", subtitleOffset))秒")
     }
     
     /// 切换街溜子模式

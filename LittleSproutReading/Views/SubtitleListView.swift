@@ -9,29 +9,55 @@ import SwiftUI
 
 struct SubtitleListView: View {
     @ObservedObject var viewModel: VideoPlayerViewModel
-    @State private var selectedWord: String?
-    @State private var wordPosition: CGRect?  // 记录单词的位置
-    @State private var showTranslation = false
+    @Binding var selectedWord: String?
+    @Binding var wordPosition: CGRect?
+    @Binding var showTranslation: Bool
     
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(viewModel.subtitles) { subtitle in
-                        SubtitleRow(
-                            subtitle: subtitle,
-                            currentTime: viewModel.currentTime,
-                            isCurrentSubtitle: viewModel.currentSubtitleIndex == subtitle.index - 1,
-                            onWordTap: { word, frame in
-                                selectedWord = word
-                                wordPosition = frame
-                                showTranslation = true
-                            },
-                            onSubtitleTap: {
-                                viewModel.seekToSubtitle(subtitle)
-                            }
-                        )
-                        .id(subtitle.id)
+                if viewModel.subtitles.isEmpty {
+                    // 无字幕提示
+                    VStack(spacing: 16) {
+                        Spacer()
+                        
+                        Image(systemName: "text.bubble")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray)
+                        
+                        if let error = viewModel.subtitleError {
+                            Text(error)
+                                .font(.system(size: 16))
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                        } else {
+                            Text("该视频暂无字幕")
+                                .font(.system(size: 16))
+                                .foregroundColor(.gray)
+                        }
+                        
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    LazyVStack(spacing: 0) {
+                        ForEach(viewModel.subtitles) { subtitle in
+                            SubtitleRow(
+                                subtitle: subtitle,
+                                currentTime: viewModel.currentTime,
+                                isCurrentSubtitle: viewModel.currentSubtitleIndex == subtitle.index - 1,
+                                onWordTap: { word, frame in
+                                    selectedWord = word
+                                    wordPosition = frame
+                                    showTranslation = true
+                                },
+                                onSubtitleTap: {
+                                    viewModel.seekToSubtitle(subtitle)
+                                }
+                            )
+                            .id(subtitle.id)
+                        }
                     }
                 }
             }
@@ -44,22 +70,11 @@ struct SubtitleListView: View {
                     proxy.scrollTo(viewModel.subtitles[index].id, anchor: .center)
                 }
             }
-            // 监听播放状态，播放时自动关闭弹窗
+            // 监听播放状态,播放时自动关闭弹窗
             .onChange(of: viewModel.isPlaying) { isPlaying in
                 if isPlaying && showTranslation {
                     showTranslation = false
-                    print("▶️ [SubtitleList] 播放恢复，自动关闭弹窗")
                 }
-            }
-        }
-        .overlay {
-            if showTranslation, let word = selectedWord, let position = wordPosition {
-                WordTranslationPopup(
-                    word: word,
-                    wordPosition: position,
-                    viewModel: viewModel,
-                    isPresented: $showTranslation
-                )
             }
         }
     }

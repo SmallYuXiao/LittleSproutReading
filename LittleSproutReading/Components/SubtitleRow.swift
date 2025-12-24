@@ -103,34 +103,19 @@ struct SubtitleRow: View {
     
     // MARK: - 英文文本视图(句子级别高亮)
     private var englishTextView: some View {
-        // 🔍 调试：打印原始文本和分词结果
-        if subtitle.index <= 3 {
-            print("🖼️ [SubtitleRow #\(subtitle.index)] 原始英文文本: \"\(subtitle.englishText)\"")
-            print("   文本长度: \(subtitle.englishText.count) 字符")
-        }
-        
         // 简化版本:整句高亮,每个单词可点击
         let words = subtitle.englishText.split(separator: " ").map(String.init)
         
-        if subtitle.index <= 3 {
-            print("   分词结果: \(words.count) 个单词")
-            print("   前3个单词: \(words.prefix(3))")
-        }
-        
         return FlowLayout(spacing: 4) {
             ForEach(Array(words.enumerated()), id: \.offset) { index, word in
-                Button(action: {
-                    // 清理标点符号
-                    let cleanWord = word.trimmingCharacters(in: .punctuationCharacters)
-                    // 使用 UIKit 方式获取全局位置（更可靠）
-                    onWordTap(cleanWord, .zero)  // 暂时传 .zero，稍后优化位置
-                }) {
-                    Text(word)
-                        .font(.body)
-                        .foregroundColor(isCurrentSubtitle ? .green : .white)
-                        .padding(.horizontal, 2)
-                }
-                .buttonStyle(PlainButtonStyle())
+                WordButton(
+                    word: word,
+                    isHighlighted: isCurrentSubtitle,
+                    onTap: { wordRect in
+                        let cleanWord = word.trimmingCharacters(in: .punctuationCharacters)
+                        onWordTap(cleanWord, wordRect)
+                    }
+                )
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -249,5 +234,44 @@ struct SubtitleRow: View {
         let secs = Int(seconds) % 60
         let millis = Int((seconds.truncatingRemainder(dividingBy: 1)) * 100)
         return String(format: "%02d:%02d:%02d", minutes, secs, millis)
+    }
+}
+
+// MARK: - WordButton (获取单词的精确位置)
+struct WordButton: View {
+    let word: String
+    let isHighlighted: Bool
+    let onTap: (CGRect) -> Void
+    
+    @State private var currentFrame: CGRect = .zero
+    
+    var body: some View {
+        Button(action: {
+            // 点击时使用存储的frame
+            onTap(currentFrame)
+        }) {
+            Text(word)
+                .font(.body)
+                .foregroundColor(isHighlighted ? .green : .white)
+                .padding(.horizontal, 2)
+                .background(
+                    GeometryReader { geometry in
+                        Color.clear
+                            .preference(key: WordFramePreferenceKey.self, value: geometry.frame(in: .global))
+                    }
+                )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .onPreferenceChange(WordFramePreferenceKey.self) { newFrame in
+            currentFrame = newFrame
+        }
+    }
+}
+
+// MARK: - PreferenceKey for Word Frame
+struct WordFramePreferenceKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        value = nextValue()
     }
 }

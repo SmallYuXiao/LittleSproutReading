@@ -16,7 +16,6 @@ struct YouTubeInputView: View {
     
     init(viewModel: VideoPlayerViewModel) {
         self.viewModel = viewModel
-        print("🎬 [STARTUP] YouTubeInputView init 开始: \(Date())")
     }
     
     var body: some View {
@@ -126,8 +125,6 @@ struct YouTubeInputView: View {
                                 Spacer()
                                 
                                 Button(action: {
-                                    print("🗑️ [DEBUG] 清空按钮被点击")
-                                    print("🗑️ [DEBUG] 当前历史记录数量: \(viewModel.historyManager.histories.count)")
                                     withAnimation {
                                         viewModel.historyManager.clearAll()
                                     }
@@ -149,7 +146,6 @@ struct YouTubeInputView: View {
                                                 loadVideoFromHistory(history)
                                             },
                                             onDelete: {
-                                                print("📝 [DEBUG] YouTubeInputView 收到删除请求: \(history.title)")
                                                 withAnimation {
                                                     viewModel.historyManager.deleteHistory(history)
                                                 }
@@ -180,12 +176,10 @@ struct YouTubeInputView: View {
             .padding(.horizontal, 32)
         }
         .onAppear {
-            print("🎬 [STARTUP] YouTubeInputView onAppear 开始: \(Date())")
             
             // 延迟加载非关键元素（历史记录和示例）
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 isInitializing = false
-                print("✅ [STARTUP] YouTubeInputView 初始化完成: \(Date())")
             }
         }
     }

@@ -119,6 +119,56 @@ class YouTubeSubtitleService {
         return response.languages ?? []
     }
     
+    /// 使用时间戳API获取字幕 (备选方案)
+    /// - Parameters:
+    ///   - videoID: YouTube Video ID
+    ///   - languages: 语言代码列表(按优先级排序)
+    /// - Returns: 字幕数组
+    func fetchSubtitlesWithTimestamps(videoID: String, languages: [String] = ["en"]) async throws -> [Subtitle] {
+        // 构建 URL
+        guard let url = URL(string: "\(baseURL)/api/video-timestamps/\(videoID)") else {
+            throw YouTubeSubtitleError.invalidURL
+        }
+        
+        // 构建请求体
+        let requestBody: [String: Any] = ["languages": languages]
+        let jsonData = try JSONSerialization.data(withJSONObject: requestBody)
+        
+        // 创建请求
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = jsonData
+        
+        // 发送请求
+        let (data, _) = try await URLSession.shared.data(for: request)
+        
+        // 解析响应
+        let decoder = JSONDecoder()
+        let apiResponse = try decoder.decode(TimestampSubtitleResponse.self, from: data)
+        
+        if !apiResponse.success {
+            throw YouTubeSubtitleError.serverError(apiResponse.error ?? "Unknown error")
+        }
+        
+        guard let timestamps = apiResponse.timestamps else {
+            throw YouTubeSubtitleError.noSubtitles
+        }
+        
+        // 转换为 Subtitle 格式
+        let subtitles = timestamps.enumerated().map { index, item in
+            Subtitle(
+                index: index + 1,
+                startTime: item.start,
+                endTime: item.start + item.duration,
+                englishText: item.text,
+                chineseText: ""
+            )
+        }
+        
+        return subtitles
+    }
+    
     /// 检查服务是否可用
     func checkServiceHealth() async -> Bool {
         guard let url = URL(string: "\(baseURL)/health") else {
@@ -190,31 +240,23 @@ extension YouTubeSubtitleService {
     func fetchVideoInfoWithSubtitles(videoID: String) async throws -> YouTubeVideoInfoResponse {
         let apiURL = "\(baseURL)/api/youtube-info/\(videoID)"
         
-        print("📡 [API] 请求 URL: \(apiURL)")
         
         guard let url = URL(string: apiURL) else {
             throw YouTubeSubtitleError.invalidURL
         }
         
-        print("⏳ [API] 发送 HTTP 请求...")
         let (data, response) = try await URLSession.shared.data(from: url)
         
         if let httpResponse = response as? HTTPURLResponse {
-            print("📥 [API] 收到响应: HTTP \(httpResponse.statusCode)")
         }
         
         let decoder = JSONDecoder()
         let result = try decoder.decode(YouTubeVideoInfoResponse.self, from: data)
         
         if !result.success {
-            print("❌ [API] 后端返回错误: \(result.error ?? "Unknown")")
             throw YouTubeSubtitleError.serverError(result.error ?? "Unknown error")
         }
         
-        print("✅ [API] 成功获取视频信息")
-        print("   标题: \(result.title ?? "N/A")")
-        print("   格式数: \(result.formats?.count ?? 0)")
-        print("   字幕数: \(result.subtitles?.count ?? 0)")
         
         return result
     }
@@ -234,19 +276,13 @@ extension YouTubeSubtitleService {
         }
         
         // 🔍 调试：打印原始字幕内容的前500个字符
-        print("📄 原始字幕内容预览:")
-        print(content.prefix(500))
-        print("=" + String(repeating: "=", count: 60))
         
         // 🎯 自动检测字幕格式并解析
         if content.contains("WEBVTT") || content.contains("Kind:") {
-            print("✅ 检测到 VTT 格式字幕")
             return SubtitleParser.parseVTT(content: content)
         } else if content.contains("<?xml") || content.contains("<transcript") || content.contains("<timedtext") {
-            print("✅ 检测到 XML 格式字幕")
             return SubtitleParser.parseXML(content: content)
         } else {
-            print("✅ 检测到 SRT 格式字幕（或默认）")
             return SubtitleParser.parseSRT(content: content)
         }
     }
@@ -284,5 +320,22 @@ struct VideoSubtitle: Codable, Identifiable {
     let language_name: String
     let url: String
     let format: String
+}
+
+// MARK: - Timestamp API Response Models
+
+struct TimestampSubtitleResponse: Codable {
+    let success: Bool
+    let video_id: String?
+    let language: String?
+    let timestamps: [TimestampItem]?
+    let count: Int?
+    let error: String?
+}
+
+struct TimestampItem: Codable {
+    let text: String
+    let start: Double
+    let duration: Double
 }
 

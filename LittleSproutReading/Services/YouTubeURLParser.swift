@@ -16,25 +16,19 @@ struct YouTubeURLParser {
     /// - https://www.youtube.com/embed/VIDEO_ID
     /// - https://www.youtube.com/shorts/VIDEO_ID
     static func extractVideoID(from urlString: String) -> String? {
-        print("🔍 [URLParser] 解析 URL: \(urlString)")
         
         guard let url = URL(string: urlString.trimmingCharacters(in: .whitespaces)) else {
-            print("❌ [URLParser] 无效的 URL")
             return nil
         }
         
         let host = url.host?.lowercased() ?? ""
         let path = url.path
         
-        print("   Host: \(host)")
-        print("   Path: \(path)")
         
         // 格式 1: youtu.be/VIDEO_ID
         if host.contains("youtu.be") {
             let videoID = url.lastPathComponent
             let result = isValidVideoID(videoID) ? videoID : nil
-            print("   格式: youtu.be")
-            print("   结果: \(result ?? "nil")")
             return result
         }
         
@@ -46,8 +40,6 @@ struct YouTubeURLParser {
                    let queryItems = components.queryItems,
                    let videoID = queryItems.first(where: { $0.name == "v" })?.value {
                     let result = isValidVideoID(videoID) ? videoID : nil
-                    print("   格式: youtube.com/watch")
-                    print("   结果: \(result ?? "nil")")
                     return result
                 }
             }
@@ -59,8 +51,6 @@ struct YouTubeURLParser {
                    embedIndex + 1 < pathComponents.count {
                     let videoID = pathComponents[embedIndex + 1]
                     let result = isValidVideoID(videoID) ? videoID : nil
-                    print("   格式: youtube.com/embed")
-                    print("   结果: \(result ?? "nil")")
                     return result
                 }
             }
@@ -72,8 +62,6 @@ struct YouTubeURLParser {
                    vIndex + 1 < pathComponents.count {
                     let videoID = pathComponents[vIndex + 1]
                     let result = isValidVideoID(videoID) ? videoID : nil
-                    print("   格式: youtube.com/v")
-                    print("   结果: \(result ?? "nil")")
                     return result
                 }
             }
@@ -85,14 +73,11 @@ struct YouTubeURLParser {
                    shortsIndex + 1 < pathComponents.count {
                     let videoID = pathComponents[shortsIndex + 1]
                     let result = isValidVideoID(videoID) ? videoID : nil
-                    print("   格式: youtube.com/shorts")
-                    print("   结果: \(result ?? "nil")")
                     return result
                 }
             }
         }
         
-        print("   ❌ 不匹配任何已知格式")
         return nil
     }
     

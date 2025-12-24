@@ -19,17 +19,18 @@ struct YouTubeWebView: UIViewRepresentable {
     
     func makeUIView(context: Context) -> WKWebView {
         let webConfiguration = WKWebViewConfiguration()
-        webConfiguration.allowsInlineMediaPlayback = true
+        webConfiguration.allowsInlineMediaPlayback = false  // 禁止内嵌播放，强制走详情页
         webConfiguration.mediaTypesRequiringUserActionForPlayback = .all
         
         let webView = WKWebView(frame: .zero, configuration: webConfiguration)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
         
-        // 使用搜索语法排除 Shorts：加 -"#shorts" -shorts
-        let searchQuery = "english learning -\"#shorts\" -shorts"
+        // 推荐英语学习内容,使用时长过滤器排除 Shorts
+        let searchQuery = "english learning podcast interview TED talk BBC news"
         let encodedQuery = searchQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? searchQuery
-        if let url = URL(string: "https://www.youtube.com/results?search_query=\(encodedQuery)") {
+        // sp=EgQQARgE 表示只显示 4+ 分钟的视频(完全排除 Shorts)
+        if let url = URL(string: "https://www.youtube.com/results?search_query=\(encodedQuery)&sp=EgQQARgE") {
             let request = URLRequest(url: url)
             webView.load(request)
         }
@@ -57,11 +58,9 @@ struct YouTubeWebView: UIViewRepresentable {
             }
             
             let urlString = url.absoluteString
-            print("🌐 [WebView] 导航到: \(urlString)")
             
             // 检测是否是 YouTube 视频链接
             if let videoID = YouTubeURLParser.extractVideoID(from: urlString) {
-                print("🎬 [WebView] 检测到视频 ID: \(videoID)")
                 
                 // 拦截导航，跳转到应用内播放器
                 DispatchQueue.main.async {
@@ -78,66 +77,106 @@ struct YouTubeWebView: UIViewRepresentable {
         
         // 页面加载开始
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-            print("🌐 [WebView] 开始加载页面")
         }
         
         // 页面加载完成
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            print("✅ [WebView] 页面加载完成")
             
-            // 注入 JavaScript 禁用悬停自动播放
-            let disableHoverPlayScript = """
+            // 注入 JavaScript 禁用列表内的任何视频播放
+            let disableInlinePlayScript = """
             (function() {
-                // 禁用 YouTube 的悬停自动播放功能
+                if (window.lsrInlineBlockInstalled) return;
+                window.lsrInlineBlockInstalled = true;
+                
+                // 全局禁用 video 播放与 src 绑定，防止滚动停下后的自动播放
+                (function patchVideo() {
+                    if (window.lsrVideoPatched) return;
+                    window.lsrVideoPatched = true;
+                    const proto = HTMLMediaElement.prototype;
+                    
+                    // 禁用 play
+                    const blockPlay = function() {
+                        try { this.pause(); } catch(e) {}
+                        return Promise.reject(new DOMException('blocked', 'NotAllowedError'));
+                    };
+                    proto.play = blockPlay;
+                    
+                    // 禁用 src setter
+                    const srcDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
+                    if (srcDesc && srcDesc.set) {
+                        Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+                            get: srcDesc.get,
+                            set: function(_) {
+                                try { this.pause(); this.removeAttribute('src'); this.load(); } catch(e) {}
+                            },
+                            configurable: true
+                        });
+                    }
+                    
+                    // 禁用 load
+                    const origLoad = proto.load;
+                    proto.load = function() {
+                        try { this.pause(); } catch(e) {}
+                        return;
+                    };
+                })();
+                
                 var style = document.createElement('style');
                 style.innerHTML = `
-                    /* 禁用视频缩略图的悬停播放 */
                     ytd-thumbnail video,
                     ytd-moving-thumbnail-renderer video,
-                    ytd-video-preview video {
+                    ytd-video-preview video,
+                    ytd-player video,
+                    .html5-video-player video {
                         display: none !important;
                         pointer-events: none !important;
                     }
-                    
-                    /* 禁用悬停时的动画效果 */
-                    ytd-thumbnail:hover video {
-                        opacity: 0 !important;
-                    }
-                    
-                    /* 确保静态缩略图始终显示 */
-                    ytd-thumbnail img {
-                        display: block !important;
-                        opacity: 1 !important;
-                    }
+                    ytd-thumbnail img { opacity: 1 !important; }
+                    ytd-player, #player, .html5-video-player { pointer-events: none !important; }
+                    ytd-app #movie_player { pointer-events: none !important; }
+                    ytd-app .html5-video-player { pointer-events: none !important; }
+                    ytd-app ytd-player { pointer-events: none !important; }
                 `;
                 document.head.appendChild(style);
                 
-                // 阻止视频元素加载和播放
-                setInterval(function() {
-                    var videos = document.querySelectorAll('ytd-thumbnail video, ytd-moving-thumbnail-renderer video');
+                function scrubVideos() {
+                    var videos = document.querySelectorAll('video');
                     videos.forEach(function(video) {
-                        video.pause();
+                        try { video.pause(); } catch(e) {}
                         video.removeAttribute('src');
                         video.load();
                     });
-                }, 500);
+                }
                 
-                console.log('🚫 YouTube 悬停自动播放已禁用');
+                scrubVideos();
+                
+                // 滚动/可见性变化时也强制暂停并移除 src，防止滑动停下后自动播放
+                ['scroll', 'touchend', 'wheel', 'visibilitychange'].forEach(function(evt) {
+                    document.addEventListener(evt, scrubVideos, true);
+                });
+                
+                // 监听 DOM 变化，发现新的视频节点就清理，防止动态加载
+                var observer = new MutationObserver(function(mutations) {
+                    let foundVideo = false;
+                    for (const m of mutations) {
+                        if (m.addedNodes && m.addedNodes.length) {
+                            foundVideo = true; break;
+                        }
+                    }
+                    if (foundVideo) scrubVideos();
+                });
+                observer.observe(document.documentElement || document.body, { childList: true, subtree: true });
+                
+                // 定时兜底
+                setInterval(scrubVideos, 500);
             })();
             """
             
-            webView.evaluateJavaScript(disableHoverPlayScript) { result, error in
-                if let error = error {
-                    print("❌ [WebView] 注入脚本失败: \(error.localizedDescription)")
-                } else {
-                    print("✅ [WebView] 已禁用悬停自动播放")
-                }
-            }
+            webView.evaluateJavaScript(disableInlinePlayScript) { _, _ in }
         }
         
         // 页面加载失败
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            print("❌ [WebView] 页面加载失败: \(error.localizedDescription)")
         }
     }
 }
@@ -164,15 +203,12 @@ struct YouTubeWebBrowserView: View {
         .background(Color.black)
         .ignoresSafeArea()  // 忽略安全区域，顶部和底部贴合屏幕，更像原生应用
         .onAppear {
-            print("🖥️ [WebView] WebView 视图出现（全屏原生风格）")
             // 重置恢复标志，允许下次返回时再次恢复
             if let wv = webView, let delegate = wv.navigationDelegate as? YouTubeWebViewWithControls.Coordinator {
                 delegate.hasRestoredPosition = false
-                print("   🔄 已重置 hasRestoredPosition")
             }
         }
         .onDisappear {
-            print("🖥️ [WebView] WebView 视图消失，保存滚动位置")
             // 保存滚动位置
             saveScrollPosition()
         }
@@ -182,20 +218,17 @@ struct YouTubeWebBrowserView: View {
     
     private func saveScrollPosition() {
         guard let webView = webView else {
-            print("⚠️ [WebView] webView 为 nil，无法保存滚动位置")
             return
         }
         
         webView.evaluateJavaScript("window.scrollY") { [self] result, error in
             if let error = error {
-                print("❌ [WebView] 获取滚动位置失败: \(error.localizedDescription)")
                 return
             }
             
             if let scrollY = result as? CGFloat {
                 DispatchQueue.main.async {
                     self.savedScrollPosition = CGPoint(x: 0, y: scrollY)
-                    print("💾 [WebView] 保存滚动位置: Y = \(scrollY)")
                 }
             }
         }
@@ -222,17 +255,14 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         // 如果已有实例，直接返回
         if let existingWebView = Self.sharedWebView {
-            print("♻️ [WebView] 重用现有 WebView 实例")
             // 重新设置 navigationDelegate，确保拦截功能正常
             existingWebView.navigationDelegate = context.coordinator
-            print("   ✅ navigationDelegate 已重新设置")
             return existingWebView
         }
         
-        print("🆕 [WebView] 创建新的 WebView 实例")
         
         let webConfiguration = WKWebViewConfiguration()
-        webConfiguration.allowsInlineMediaPlayback = true
+        webConfiguration.allowsInlineMediaPlayback = false  // 禁止内嵌播放
         webConfiguration.mediaTypesRequiringUserActionForPlayback = .all
         
         // 确保可以拦截所有导航请求
@@ -241,62 +271,117 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
         // 创建 UserScript - 在页面加载开始时就注入
         let interceptScript = """
         (function() {
-            console.log('🔧 [Early] YouTube 拦截脚本（早期注入）');
+            if (window.lsrInterceptorInstalled) return;
+            window.lsrInterceptorInstalled = true;
             
-            // 等待 DOM 加载完成
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', setupInterceptor);
-            } else {
-                setupInterceptor();
-            }
+            const VIDEO_PATTERNS = [/\\/watch\\?v=/, /youtu\\.be\\//, /\\/shorts\\//, /\\/embed\\//];
+            const isVideoUrl = (url) => {
+                if (!url) return false;
+                try { url = new URL(url, location.origin).href; } catch(e) {}
+                return VIDEO_PATTERNS.some(p => p.test(url));
+            };
             
-            function setupInterceptor() {
-                if (window.ytInterceptorInstalled) {
-                    console.log('⚠️ 拦截器已存在');
-                    return;
+            const routeToNative = (url) => {
+                setTimeout(() => { window.location.href = url; }, 0);
+            };
+            
+            const handleNavigate = (url, evt) => {
+                if (!isVideoUrl(url)) return false;
+                if (evt && evt.stopImmediatePropagation) evt.stopImmediatePropagation();
+                if (evt && evt.preventDefault) evt.preventDefault();
+                routeToNative(url);
+                return true;
+            };
+            
+            // 从事件路径中提取视频 URL（兼容无 <a> 的卡片点击）
+            const extractUrlFromPath = (path) => {
+                for (const el of path) {
+                    if (!el) continue;
+                    if (el.tagName === 'A' && el.href) return el.href;
+                    const vid = el.getAttribute?.('video-id') || el.getAttribute?.('data-video-id');
+                    if (vid) return `https://www.youtube.com/watch?v=${vid}`;
+                    const thumbLink = el.querySelector?.('a#thumbnail[href]');
+                    if (thumbLink?.href) return thumbLink.href;
+                    const cmdUrl = el.data?.endpoint?.commandMetadata?.webCommandMetadata?.url;
+                    if (cmdUrl) return cmdUrl;
                 }
-                window.ytInterceptorInstalled = true;
-                
-                console.log('🎯 设置视频链接拦截器...');
-                
-                // 拦截所有点击事件
-                document.addEventListener('click', function(e) {
-                    let target = e.target;
-                    let depth = 0;
-                    
-                    // 向上查找 <a> 标签
-                    while (target && target.tagName !== 'A' && depth < 10) {
-                        target = target.parentElement;
-                        depth++;
+                return null;
+            };
+            
+            // 仅在“点击”而非“滑动”时触发
+            let startX = 0, startY = 0, isDragging = false;
+            let recentScroll = false;
+            const dragThreshold = 10; // px
+            const scrollCooldown = 220; // ms
+            
+            const interceptEvent = (e) => {
+                const path = e.composedPath ? e.composedPath() : [];
+                const url = extractUrlFromPath(path);
+                if (url && handleNavigate(url, e)) return false;
+            };
+            
+            const markRecentScroll = () => {
+                recentScroll = true;
+                setTimeout(() => { recentScroll = false; }, scrollCooldown);
+            };
+            
+            document.addEventListener('scroll', markRecentScroll, true);
+            document.addEventListener('touchmove', markRecentScroll, true);
+            document.addEventListener('wheel', markRecentScroll, true);
+            
+            document.addEventListener('pointerdown', function(e) {
+                startX = e.clientX; startY = e.clientY; isDragging = false;
+            }, true);
+            
+            document.addEventListener('pointermove', function(e) {
+                if (Math.abs(e.clientX - startX) > dragThreshold ||
+                    Math.abs(e.clientY - startY) > dragThreshold) {
+                    isDragging = true;
+                }
+            }, true);
+            
+            document.addEventListener('pointerup', function(e) {
+                if (!isDragging && !recentScroll) interceptEvent(e);
+            }, true);
+            
+            document.addEventListener('pointercancel', function() {
+                isDragging = true;
+            }, true);
+            
+            // 兜底：click 事件（不影响拖动，因为 pointermove 已标记 isDragging）
+            document.addEventListener('click', function(e) {
+                if (!isDragging && !recentScroll) interceptEvent(e);
+            }, true);
+            
+            // 阻断 YouTube 缩略图/播放按钮的默认行为，避免内嵌播放器弹出
+            document.addEventListener('click', function(e) {
+                const path = e.composedPath ? e.composedPath() : [];
+                for (const el of path) {
+                    if (!el) continue;
+                    if (el.id === 'thumbnail' || el.tagName === 'YTD-THUMBNAIL' || el.classList?.contains('ytd-thumbnail') ||
+                        el.tagName === 'YTD-PLAY-BUTTON-RENDERER' || el.classList?.contains('ytd-play-button-renderer')) {
+                        e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation();
+                        const url = extractUrlFromPath(path);
+                        if (url) handleNavigate(url, e);
+                        return false;
                     }
-                    
-                    if (target && target.href) {
-                        let url = target.href;
-                        console.log('🔗 [Interceptor] 点击: ' + url);
-                        
-                        // 检测视频链接
-                        if (url.includes('/watch?v=') || 
-                            url.includes('youtu.be/') || 
-                            url.includes('/shorts/') ||
-                            url.includes('/embed/')) {
-                            
-                            console.log('🎬 [Interceptor] 视频链接！阻止并导航');
-                            e.preventDefault();
-                            e.stopPropagation();
-                            e.stopImmediatePropagation();
-                            
-                            // 延迟一点点，确保事件完全取消
-                            setTimeout(function() {
-                                window.location.href = url;
-                            }, 10);
-                            
-                            return false;
-                        }
-                    }
-                }, true); // 捕获阶段
-                
-                console.log('✅ [Early] 拦截器激活');
-            }
+                }
+            }, true);
+            
+            // 拦截 YouTube 的 SPA 导航事件
+            window.addEventListener('yt-navigate-start', function(e) {
+                const url = e?.detail?.endpoint?.commandMetadata?.webCommandMetadata?.url;
+                if (handleNavigate(url, e)) return false;
+            }, true);
+            
+            // 拦截 history 状态变更（YouTube 使用 pushState/replaceState）
+            ['pushState', 'replaceState'].forEach(function(name) {
+                const original = history[name];
+                history[name] = function(state, title, url) {
+                    if (url && handleNavigate(url)) return;
+                    return original.apply(this, arguments);
+                };
+            });
         })();
         """
         
@@ -312,9 +397,6 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
         
-        print("🌐 [WebView] WebView 初始化完成")
-        print("   navigationDelegate 已设置")
-        print("   UserScript 已注入（atDocumentStart）")
         
         // 保存 WebView 实例
         Self.sharedWebView = webView
@@ -324,20 +406,16 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
             self.webView = webView
         }
         
+        
         // 只在第一次创建时加载首页
         if !Self.hasLoadedInitialPage {
-            let searchQuery = "english news talks interview speech"
-            let encodedQuery = searchQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? searchQuery
-            
-            if let url = URL(string: "https://www.youtube.com/results?search_query=\(encodedQuery)") {
+            // 默认打开 YouTube Subscriptions (订阅) 页面
+            if let url = URL(string: "https://www.youtube.com/feed/subscriptions") {
                 let request = URLRequest(url: url)
-                print("🌐 [WebView] 首次加载首页: \(url.absoluteString)")
-                print("🔍 搜索关键词: english news talks interview speech")
                 webView.load(request)
                 Self.hasLoadedInitialPage = true
             }
         } else {
-            print("♻️ [WebView] 跳过重复加载，保持当前页面")
         }
         
         return webView
@@ -347,7 +425,6 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
         // 确保 navigationDelegate 始终设置正确
         if webView.navigationDelegate !== context.coordinator {
             webView.navigationDelegate = context.coordinator
-            print("🔄 [WebView] navigationDelegate 已更新")
         }
         
         // 更新导航状态
@@ -360,15 +437,12 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
         if savedScrollPosition.y > 0 && !context.coordinator.hasRestoredPosition {
             context.coordinator.hasRestoredPosition = true
             
-            print("📍 [WebView] 在 updateUIView 中恢复滚动位置: Y = \(savedScrollPosition.y)")
             
             // 延迟恢复，确保页面已渲染
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 webView.evaluateJavaScript("window.scrollTo(0, \(self.savedScrollPosition.y))") { _, error in
                     if let error = error {
-                        print("❌ [WebView] 恢复滚动位置失败: \(error.localizedDescription)")
                     } else {
-                        print("✅ [WebView] 滚动位置已恢复")
                         // 恢复后清空，防止重复恢复
                         DispatchQueue.main.async {
                             self.savedScrollPosition = .zero
@@ -389,10 +463,8 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
         }
         
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            print("⚡️ [Coordinator] decidePolicyFor 被调用")
             
             guard let url = navigationAction.request.url else {
-                print("   ⚠️ URL 为 nil，允许导航")
                 decisionHandler(.allow)
                 return
             }
@@ -401,18 +473,9 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
             
             // 打印所有导航类型，便于调试
             let navType = navigationAction.navigationType
-            print("🌐 [WebView] 导航事件:")
-            print("   URL: \(urlString)")
-            print("   类型: \(navType.rawValue) (0=链接点击, 1=表单提交, 2=后退/前进, 3=重载, 4=表单重新提交, -1=其他)")
             
             // 检测 YouTube 视频链接
             if let videoID = YouTubeURLParser.extractVideoID(from: urlString) {
-                print(String(repeating: "=", count: 60))
-                print("🎬 [WebView] 检测到 YouTube 视频！")
-                print("📹 视频 ID: \(videoID)")
-                print("🔗 原始 URL: \(urlString)")
-                print("🚀 拦截导航，跳转到应用内播放器...")
-                print(String(repeating: "=", count: 60))
                 
                 // 立即取消导航
                 decisionHandler(.cancel)
@@ -420,7 +483,6 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
                 // 跳转到应用内播放器
                 DispatchQueue.main.async {
                     let video = Video(youtubeVideoID: videoID, title: "Loading...")
-                    print("📡 调用 loadVideo() - 将调用后端 API 获取播放地址")
                     self.parent.viewModel.loadVideo(video, originalURL: urlString)
                 }
                 
@@ -428,7 +490,6 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
             }
             
             // 允许其他导航（浏览 YouTube 页面）
-            print("   ✅ 允许导航")
             decisionHandler(.allow)
         }
         
@@ -445,116 +506,135 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
                 self.parent.canGoForward = webView.canGoForward
             }
             
-            print("✅ [WebView] 页面加载完成，准备注入拦截脚本...")
             
-            // 首先注入禁用悬停播放的脚本
-            let disableHoverPlayScript = """
+            // 注入脚本:禁用列表/首页内的任何视频播放(避免首页播放)
+            let disableInlinePlayScript = """
             (function() {
-                // 禁用 YouTube 的悬停自动播放功能
+                if (window.lsrInlineBlockInstalled) return;
+                window.lsrInlineBlockInstalled = true;
+                
+                // 全局禁用 video 播放与 src 绑定,防止滚动停下后的自动播放
+                (function patchVideo() {
+                    if (window.lsrVideoPatched) return;
+                    window.lsrVideoPatched = true;
+                    const proto = HTMLMediaElement.prototype;
+                    
+                    // 禁用 play
+                    const blockPlay = function() {
+                        try { this.pause(); } catch(e) {}
+                        return Promise.reject(new DOMException('blocked', 'NotAllowedError'));
+                    };
+                    proto.play = blockPlay;
+                    
+                    // 禁用 src setter
+                    const srcDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
+                    if (srcDesc && srcDesc.set) {
+                        Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+                            get: srcDesc.get,
+                            set: function(_) {
+                                try { this.pause(); this.removeAttribute('src'); this.load(); } catch(e) {}
+                            },
+                            configurable: true
+                        });
+                    }
+                    
+                    // 禁用 load
+                    const origLoad = proto.load;
+                    proto.load = function() {
+                        try { this.pause(); } catch(e) {}
+                        return;
+                    };
+                })();
+                
+                
                 var style = document.createElement('style');
                 style.innerHTML = `
-                    /* 禁用视频缩略图的悬停播放 */
+                    /* 禁用视频自动播放 */
                     ytd-thumbnail video,
                     ytd-moving-thumbnail-renderer video,
-                    ytd-video-preview video {
+                    ytd-video-preview video,
+                    ytd-player video,
+                    .html5-video-player video {
                         display: none !important;
                         pointer-events: none !important;
                     }
+                    ytd-thumbnail img { opacity: 1 !important; }
+                    ytd-player, #player, .html5-video-player { pointer-events: none !important; }
+                    ytd-app #movie_player { pointer-events: none !important; }
+                    ytd-app .html5-video-player { pointer-events: none !important; }
+                    ytd-app ytd-player { pointer-events: none !important; }
                     
-                    /* 禁用悬停时的动画效果 */
-                    ytd-thumbnail:hover video {
-                        opacity: 0 !important;
+                    /* 原生应用样式优化 */
+                    /* 为顶部内容添加安全区域内边距 */
+                    ytd-app {
+                        padding-top: env(safe-area-inset-top) !important;
                     }
                     
-                    /* 确保静态缩略图始终显示 */
-                    ytd-thumbnail img {
-                        display: block !important;
-                        opacity: 1 !important;
+                    /* 隐藏YouTube原生顶栏(masthead) */
+                    #masthead-container,
+                    ytd-masthead {
+                        display: none !important;
+                    }
+                    
+                    /* 调整主内容区域,填充整个屏幕 */
+                    #page-manager,
+                    ytd-page-manager {
+                        margin-top: 0 !important;
+                    }
+                    
+                    /* 搜索结果页面顶部添加内边距 */
+                    ytd-search {
+                        padding-top: 12px !important;
+                    }
+                    
+                    /* 优化滚动体验 */
+                    html, body {
+                        overscroll-behavior: none !important;
+                        -webkit-overflow-scrolling: touch !important;
                     }
                 `;
                 document.head.appendChild(style);
                 
-                // 阻止视频元素加载和播放
-                setInterval(function() {
-                    var videos = document.querySelectorAll('ytd-thumbnail video, ytd-moving-thumbnail-renderer video');
+                function scrubVideos() {
+                    var videos = document.querySelectorAll('video');
                     videos.forEach(function(video) {
-                        video.pause();
+                        try { video.pause(); } catch(e) {}
                         video.removeAttribute('src');
                         video.load();
                     });
-                }, 500);
-                
-                console.log('🚫 YouTube 悬停自动播放已禁用');
-            })();
-            """
-            
-            webView.evaluateJavaScript(disableHoverPlayScript) { _, _ in
-                print("✅ [WebView] 已禁用悬停自动播放")
-            }
-            
-            // 然后注入 JavaScript 来拦截视频点击
-            let interceptScript = """
-            (function() {
-                console.log('🔧 YouTube 拦截脚本已注入');
-                
-                // 移除可能存在的旧监听器
-                if (window.ytInterceptorInstalled) {
-                    console.log('⚠️ 拦截器已存在，跳过');
-                    return;
                 }
-                window.ytInterceptorInstalled = true;
                 
-                // 拦截所有链接点击（捕获阶段）
-                document.addEventListener('click', function(e) {
-                    // 查找最近的 <a> 标签
-                    let target = e.target;
-                    let depth = 0;
-                    while (target && target.tagName !== 'A' && depth < 10) {
-                        target = target.parentElement;
-                        depth++;
-                    }
-                    
-                    if (target && target.href) {
-                        let url = target.href;
-                        console.log('🔗 点击链接: ' + url);
-                        
-                        // 检测是否是视频链接
-                        if (url.includes('/watch?v=') || 
-                            url.includes('youtu.be/') || 
-                            url.includes('/shorts/') ||
-                            url.includes('/embed/')) {
-                            console.log('🎬 检测到视频链接！');
-                            console.log('   阻止默认行为并导航...');
-                            
-                            e.preventDefault();
-                            e.stopPropagation();
-                            e.stopImmediatePropagation();
-                            
-                            // 直接导航到该 URL（触发 decidePolicyFor）
-                            window.location.href = url;
-                            return false;
+                scrubVideos();
+                
+                // 滚动/可见性变化时也强制暂停并移除 src,防止滑动停下后自动播放
+                ['scroll', 'touchend', 'wheel', 'visibilitychange'].forEach(function(evt) {
+                    document.addEventListener(evt, scrubVideos, true);
+                });
+                
+                // 监听 DOM 变化,发现新的视频节点就清理,防止动态加载
+                var observer = new MutationObserver(function(mutations) {
+                    let foundVideo = false;
+                    for (const m of mutations) {
+                        if (m.addedNodes && m.addedNodes.length) {
+                            foundVideo = true; break;
                         }
                     }
-                }, true); // true = 捕获阶段
+                    if (foundVideo) scrubVideos();
+                });
+                observer.observe(document.documentElement || document.body, { childList: true, subtree: true });
                 
-                console.log('✅ 点击拦截器已激活（捕获阶段）');
+                // 定时兜底
+                setInterval(scrubVideos, 500);
             })();
             """
             
-            webView.evaluateJavaScript(interceptScript) { result, error in
-                if let error = error {
-                    print("❌ [WebView] JavaScript 注入失败: \(error.localizedDescription)")
-                } else {
-                    print("✅ [WebView] JavaScript 拦截脚本注入成功")
-                }
-            }
+            webView.evaluateJavaScript(disableInlinePlayScript) { _, _ in }
         }
         
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
             DispatchQueue.main.async {
                 self.parent.isLoading = false
             }
-            print("❌ [WebView] 加载失败: \(error.localizedDescription)")
         }
     }
 }

@@ -60,43 +60,27 @@ def test_algorithms() -> List[Tuple[str, str, bool]]:
         "YOUR_SECRET_KEY",
     ]
     
-    print("=" * 80)
-    print("🔍 开始测试 g-footer 生成算法")
-    print("=" * 80)
-    print(f"测试链接: {TEST_LINK}")
-    print(f"测试时间戳: {TEST_TIMESTAMP}")
-    print(f"实际 g-footer: {ACTUAL_G_FOOTER}")
-    print("=" * 80)
-    print()
     
     # 算法 1: 纯时间戳
     result = md5_hash(str(TEST_TIMESTAMP))
     match = result == ACTUAL_G_FOOTER
     results.append(("MD5(timestamp)", result, match))
-    print(f"{'✅' if match else '❌'} 算法 1: MD5(timestamp)")
-    print(f"   结果: {result}")
     
     # 算法 2: 时间戳 + 链接
     result = md5_hash(f"{TEST_TIMESTAMP}{TEST_LINK}")
     match = result == ACTUAL_G_FOOTER
     results.append(("MD5(timestamp + link)", result, match))
-    print(f"{'✅' if match else '❌'} 算法 2: MD5(timestamp + link)")
-    print(f"   结果: {result}")
     
     # 算法 3: 链接 + 时间戳
     result = md5_hash(f"{TEST_LINK}{TEST_TIMESTAMP}")
     match = result == ACTUAL_G_FOOTER
     results.append(("MD5(link + timestamp)", result, match))
-    print(f"{'✅' if match else '❌'} 算法 3: MD5(link + timestamp)")
-    print(f"   结果: {result}")
     
     # 算法 4: JSON payload
     payload = json.dumps({"link": TEST_LINK}, separators=(',', ':'))
     result = md5_hash(f"{TEST_TIMESTAMP}{payload}")
     match = result == ACTUAL_G_FOOTER
     results.append(("MD5(timestamp + JSON)", result, match))
-    print(f"{'✅' if match else '❌'} 算法 4: MD5(timestamp + JSON)")
-    print(f"   结果: {result}")
     
     # 算法 5: 带密钥的组合
     for secret in possible_secrets:
@@ -104,9 +88,6 @@ def test_algorithms() -> List[Tuple[str, str, bool]]:
         match = result == ACTUAL_G_FOOTER
         results.append((f"MD5(timestamp + link + '{secret}')", result, match))
         if match:
-            print(f"✅ 算法 5.{possible_secrets.index(secret) + 1}: MD5(timestamp + link + '{secret}')")
-            print(f"   结果: {result}")
-            print(f"   🎉 找到匹配！密钥是: '{secret}'")
     
     # 算法 6: 反向组合 (secret + timestamp + link)
     for secret in possible_secrets:
@@ -114,9 +95,6 @@ def test_algorithms() -> List[Tuple[str, str, bool]]:
         match = result == ACTUAL_G_FOOTER
         results.append((f"MD5('{secret}' + timestamp + link)", result, match))
         if match:
-            print(f"✅ 算法 6.{possible_secrets.index(secret) + 1}: MD5('{secret}' + timestamp + link)")
-            print(f"   结果: {result}")
-            print(f"   🎉 找到匹配！密钥是: '{secret}'")
     
     # 算法 7: 使用冒号分隔
     for secret in possible_secrets:
@@ -124,9 +102,6 @@ def test_algorithms() -> List[Tuple[str, str, bool]]:
         match = result == ACTUAL_G_FOOTER
         results.append((f"MD5(timestamp:link:'{secret}')", result, match))
         if match:
-            print(f"✅ 算法 7.{possible_secrets.index(secret) + 1}: MD5(timestamp:link:'{secret}')")
-            print(f"   结果: {result}")
-            print(f"   🎉 找到匹配！密钥是: '{secret}'")
     
     # 算法 8: HMAC-MD5
     for secret in possible_secrets:
@@ -135,45 +110,25 @@ def test_algorithms() -> List[Tuple[str, str, bool]]:
             match = result == ACTUAL_G_FOOTER
             results.append((f"HMAC-MD5(timestamp+link, key='{secret}')", result, match))
             if match:
-                print(f"✅ 算法 8.{possible_secrets.index(secret) + 1}: HMAC-MD5(timestamp+link, key='{secret}')")
-                print(f"   结果: {result}")
-                print(f"   🎉 找到匹配！密钥是: '{secret}'")
     
     # 算法 9: 只用链接的一部分
     video_id = TEST_LINK.split("v=")[-1] if "v=" in TEST_LINK else TEST_LINK
     result = md5_hash(f"{TEST_TIMESTAMP}{video_id}")
     match = result == ACTUAL_G_FOOTER
     results.append(("MD5(timestamp + video_id)", result, match))
-    print(f"{'✅' if match else '❌'} 算法 9: MD5(timestamp + video_id)")
-    print(f"   结果: {result}")
     
     # 算法 10: 使用 SHA256
     result = sha256_hash(f"{TEST_TIMESTAMP}{TEST_LINK}")[:32]  # 截取前32位
     match = result == ACTUAL_G_FOOTER
     results.append(("SHA256(timestamp + link)[:32]", result, match))
-    print(f"{'✅' if match else '❌'} 算法 10: SHA256(timestamp + link)[:32]")
-    print(f"   结果: {result}")
     
-    print()
-    print("=" * 80)
     
     # 检查是否有匹配
     matches = [r for r in results if r[2]]
     if matches:
-        print("🎉 找到匹配的算法！")
         for algo, value, _ in matches:
-            print(f"   ✅ {algo}")
-            print(f"      值: {value}")
     else:
-        print("❌ 未找到匹配的算法")
-        print()
-        print("💡 建议：")
-        print("   1. 确认你抓包的 g-footer 值是准确的")
-        print("   2. 在浏览器中注入 JavaScript 代码来拦截实际的生成函数")
-        print("   3. 检查是否还有其他参数参与计算（如 User-Agent、IP 等）")
-        print("   4. g-footer 可能依赖于动态获取的 token 或 session")
     
-    print("=" * 80)
     
     return results
 
@@ -275,45 +230,12 @@ def generate_browser_script():
 
 def print_browser_instructions():
     """打印浏览器端操作说明"""
-    print("\n" + "=" * 80)
-    print("📱 浏览器端拦截脚本")
-    print("=" * 80)
-    print()
-    print("请按以下步骤操作：")
-    print()
-    print("1️⃣  打开 SnapAny 网站：")
-    print("   https://snapany.com/zh/youtube-1")
-    print()
-    print("2️⃣  按 F12 打开开发者工具，切换到 Console（控制台）标签")
-    print()
-    print("3️⃣  复制下面的脚本并粘贴到控制台，然后按回车运行：")
-    print()
-    print("=" * 80)
-    print(generate_browser_script())
-    print("=" * 80)
-    print()
-    print("4️⃣  在网站上输入一个 YouTube 链接并点击'提取视频图片'")
-    print()
-    print("5️⃣  查看控制台输出，特别注意：")
-    print("   - g-footer 的值")
-    print("   - g-timestamp 的值")
-    print("   - 调用堆栈（可能显示生成函数的位置）")
-    print()
-    print("6️⃣  将捕获的值更新到本脚本的顶部常量中，重新运行测试")
-    print()
-    print("=" * 80)
 
 
 def interactive_test():
     """交互式测试模式"""
     global TEST_LINK, TEST_TIMESTAMP, ACTUAL_G_FOOTER
     
-    print("\n" + "=" * 80)
-    print("🎮 交互式测试模式")
-    print("=" * 80)
-    print()
-    print("请输入你从浏览器捕获的实际数据：")
-    print()
     
     try:
         link = input("YouTube 链接 (留空使用默认): ").strip() or TEST_LINK
@@ -321,10 +243,6 @@ def interactive_test():
         timestamp = int(timestamp_str) if timestamp_str else TEST_TIMESTAMP
         g_footer = input("实际的 g-footer 值 (留空使用默认): ").strip() or ACTUAL_G_FOOTER
         
-        print()
-        print("=" * 80)
-        print("开始测试...")
-        print("=" * 80)
         
         # 使用输入的值进行测试
         TEST_LINK = link
@@ -334,15 +252,12 @@ def interactive_test():
         test_algorithms()
         
     except KeyboardInterrupt:
-        print("\n\n已取消")
     except Exception as e:
-        print(f"\n❌ 错误: {e}")
 
 
 if __name__ == "__main__":
     import sys
     
-    print("""
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                                                                              ║
 ║                    SnapAny g-footer 算法逆向工具                             ║
@@ -359,10 +274,5 @@ if __name__ == "__main__":
     else:
         # 默认：运行所有测试
         test_algorithms()
-        print()
-        print("💡 提示：")
-        print("   - 运行 'python test_g_footer.py --browser' 查看浏览器拦截脚本")
-        print("   - 运行 'python test_g_footer.py --interactive' 进入交互式测试模式")
-        print()
         print_browser_instructions()
 

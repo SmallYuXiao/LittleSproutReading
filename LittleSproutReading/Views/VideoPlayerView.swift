@@ -92,7 +92,6 @@ struct VideoPlayerView: View {
                         
                         // 手动返回按钮
                         Button(action: {
-                            print("👆 [VideoPlayer] 用户点击立即返回")
                             viewModel.currentVideo = nil
                             viewModel.subtitles = []
                             viewModel.subtitleError = nil

@@ -14,6 +14,7 @@ class WordDefinition: Identifiable, Codable {
     let phonetic: String?
     let definitions: [Definition]
     let examples: [String]  // 例句列表
+    let chineseTranslation: String  // 中文翻译
     var isFavorite: Bool = false
     
     struct Definition: Codable {
@@ -22,14 +23,15 @@ class WordDefinition: Identifiable, Codable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case word, phonetic, definitions, examples, isFavorite
+        case word, phonetic, definitions, examples, chineseTranslation, isFavorite
     }
     
-    init(word: String, phonetic: String?, definitions: [Definition], examples: [String] = [], isFavorite: Bool = false) {
+    init(word: String, phonetic: String?, definitions: [Definition], examples: [String] = [], chineseTranslation: String = "", isFavorite: Bool = false) {
         self.word = word
         self.phonetic = phonetic
         self.definitions = definitions
         self.examples = examples
+        self.chineseTranslation = chineseTranslation
         self.isFavorite = isFavorite
     }
     
@@ -39,6 +41,7 @@ class WordDefinition: Identifiable, Codable {
         phonetic = try container.decodeIfPresent(String.self, forKey: .phonetic)
         definitions = try container.decode([Definition].self, forKey: .definitions)
         examples = try container.decodeIfPresent([String].self, forKey: .examples) ?? []
+        chineseTranslation = try container.decodeIfPresent(String.self, forKey: .chineseTranslation) ?? ""
         isFavorite = try container.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
     }
 }

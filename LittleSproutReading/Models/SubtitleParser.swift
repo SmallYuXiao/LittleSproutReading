@@ -12,7 +12,6 @@ class SubtitleParser {
     /// 解析SRT格式字幕文件
     static func parseSRT(from url: URL) -> [Subtitle] {
         guard let content = try? String(contentsOf: url, encoding: .utf8) else {
-            print("❌ 无法读取字幕文件: \(url)")
             return []
         }
         
@@ -76,9 +75,6 @@ class SubtitleParser {
             
             // 调试输出前几条字幕
             if index <= 3 {
-                print("📝 字幕 #\(index):")
-                print("  英文: [\(subtitle.englishText)]")
-                print("  中文: [\(subtitle.chineseText)]")
             }
             
             subtitles.append(subtitle)
@@ -237,11 +233,8 @@ class SubtitleParser {
         }
         
         // 🎯 合并连续的短片段成完整句子
-        print("📊 XML解析: 提取到 \(fragments.count) 个文本片段")
         if fragments.count > 0 {
-            print("   示例片段 [前5个]: ")
             for (i, frag) in fragments.prefix(5).enumerated() {
-                print("   [\(i+1)] \(frag.startTime)s: \"\(frag.text)\"")
             }
         }
         
@@ -317,14 +310,12 @@ class SubtitleParser {
             
             // 打印前几条合并后的字幕
             if index <= 3 {
-                print("   ✅ 合并后字幕 #\(index): \"\(englishText.isEmpty ? chineseText : englishText)\"")
             }
             
             index += 1
             currentText = ""
         }
         
-        print("📊 XML解析完成: 合并成 \(subtitles.count) 条字幕")
         return subtitles
     }
     

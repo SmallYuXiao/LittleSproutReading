@@ -47,7 +47,6 @@ def get_subtitles(video_id):
     try:
         # 获取语言参数(默认英文)
         preferred_lang = request.args.get('lang', 'en')
-        logger.info(f"Fetching subtitles for video: {video_id}, language: {preferred_lang}")
         
         # 获取字幕列表
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
@@ -61,10 +60,8 @@ def get_subtitles(video_id):
             # 如果是中文, 尝试所有变体
             lang_to_search = zh_variants if preferred_lang.startswith('zh') else [preferred_lang]
             transcript = transcript_list.find_transcript(lang_to_search)
-            logger.info(f"Found native transcript for: {transcript.language_code}")
         except:
             # 如果指定语言不存在, 尝试翻译
-            logger.info(f"Native transcript for {preferred_lang} not found. Attempting translation...")
             try:
                 # 优先找英文进行翻译
                 try:
@@ -74,15 +71,12 @@ def get_subtitles(video_id):
                     source_transcript = list(transcript_list)[0]
                 
                 transcript = source_transcript.translate(preferred_lang)
-                logger.info(f"Successfully translated from {source_transcript.language_code} to {preferred_lang}")
             except Exception as te:
-                logger.error(f"Translation failed: {str(te)}")
                 # 如果翻译失败, 回退到获取第一个可用字幕
                 available_transcripts = list(transcript_list)
                 if not available_transcripts:
                     raise Exception("No subtitles available for this video")
                 transcript = available_transcripts[0]
-                logger.info(f"Falling back to original transcript: {transcript.language_code}")
         
         # 获取字幕数据
         subtitle_data = transcript.fetch()
@@ -102,7 +96,6 @@ def get_subtitles(video_id):
             for t in transcript_list
         ]
         
-        logger.info(f"Successfully fetched subtitles: {len(subtitle_data)} entries")
         
         return jsonify({
             'success': True,
@@ -116,7 +109,6 @@ def get_subtitles(video_id):
         })
         
     except Exception as e:
-        logger.error(f"Error fetching subtitles: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e),
@@ -136,7 +128,6 @@ def get_available_languages(video_id):
         可用语言列表
     """
     try:
-        logger.info(f"Fetching available languages for video: {video_id}")
         
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         
@@ -157,7 +148,6 @@ def get_available_languages(video_id):
         })
         
     except Exception as e:
-        logger.error(f"Error fetching languages: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e),
@@ -184,7 +174,6 @@ def get_video_url(video_id):
         
         quality = request.args.get('quality', '720p')
         
-        logger.info(f"Extracting video URL for: {video_id}, quality: {quality}")
         
         ydl_opts = {
             'quiet': True,
@@ -206,7 +195,6 @@ def get_video_url(video_id):
                         fmt.get('acodec') != 'none' and
                         'storyboard' not in fmt.get('format_id', '')):
                         video_url = fmt['url']
-                        logger.info(f"Selected combined format: {fmt.get('format_id')} - {fmt.get('format_note')}")
                         break
                 
                 # 第二优先级:如果没有合并格式,尝试找 HLS 流
@@ -216,7 +204,6 @@ def get_video_url(video_id):
                             fmt.get('protocol') == 'm3u8_native' and
                             'storyboard' not in fmt.get('format_id', '')):
                             video_url = fmt['url']
-                            logger.info(f"Selected HLS format: {fmt.get('format_id')}")
                             break
                 
                 # 第三优先级:任何有视频的格式(可能没有音频)
@@ -226,7 +213,6 @@ def get_video_url(video_id):
                             fmt.get('vcodec') != 'none' and
                             'storyboard' not in fmt.get('format_id', '')):
                             video_url = fmt['url']
-                            logger.info(f"Selected video-only format: {fmt.get('format_id')} (WARNING: may not have audio)")
                             break
             
             # 备用方案:使用 info 中的 url
@@ -247,12 +233,10 @@ def get_video_url(video_id):
                 'description': info.get('description', '')[:200]
             }
             
-            logger.info(f"Successfully extracted video URL (length: {len(video_url)})")
             
             return jsonify(video_info)
         
     except Exception as e:
-        logger.error(f"Error extracting video URL: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e),
@@ -272,7 +256,6 @@ def get_youtube_info(video_id):
         包含视频信息、多种清晰度的播放地址和字幕信息
     """
     try:
-        logger.info(f"Fetching YouTube info via iiilab for: {video_id}")
         
         # 构建完整的 YouTube URL
         if 'youtube.com' in video_id or 'youtu.be' in video_id:
@@ -288,12 +271,113 @@ def get_youtube_info(video_id):
         # 调用 iiilab 服务
         result = iiilab_service.extract_video_info(youtube_url)
         
-        logger.info(f"Successfully fetched video info: {result['title']}")
         
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"Error fetching YouTube info: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'video_id': video_id
+        }), 400
+
+
+@app.route('/api/video-timestamps/<video_id>', methods=['GET', 'POST'])
+def get_video_timestamps(video_id):
+    """
+    获取 YouTube 视频的带时间戳字幕
+    兼容 youtube-api-server 的 API 格式
+    
+    参数:
+        video_id: YouTube 视频 ID (从URL路径获取)
+        languages: 语言代码列表(可选,从请求体获取,默认: ["en"])
+    
+    返回:
+        带时间戳的字幕数据
+    """
+    try:
+        # 支持 GET 和 POST 请求
+        if request.method == 'POST':
+            data = request.get_json() or {}
+            languages = data.get('languages', ['en'])
+        else:
+            lang_param = request.args.get('languages', 'en')
+            languages = [lang_param] if isinstance(lang_param, str) else lang_param
+        
+        logger.info(f"获取视频 {video_id} 的时间戳字幕,语言: {languages}")
+        
+        # 获取字幕列表
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        
+        # 尝试按优先级获取字幕
+        transcript = None
+        used_language = None
+        
+        for lang in languages:
+            try:
+                # 扩展语言变体
+                if lang.startswith('zh'):
+                    lang_variants = ['zh-Hans', 'zh-Hant', 'zh', 'zh-CN', 'zh-TW']
+                elif lang.startswith('en'):
+                    lang_variants = ['en', 'en-US', 'en-GB']
+                else:
+                    lang_variants = [lang]
+                
+                transcript = transcript_list.find_transcript(lang_variants)
+                used_language = transcript.language_code
+                logger.info(f"找到字幕语言: {used_language}")
+                break
+            except:
+                continue
+        
+        # 如果没找到,尝试翻译
+        if not transcript:
+            try:
+                # 找第一个可用的字幕进行翻译
+                available_transcripts = list(transcript_list)
+                if available_transcripts:
+                    source_transcript = available_transcripts[0]
+                    target_lang = languages[0]
+                    transcript = source_transcript.translate(target_lang)
+                    used_language = target_lang
+                    logger.info(f"使用翻译字幕: {source_transcript.language_code} -> {target_lang}")
+            except Exception as te:
+                logger.error(f"翻译失败: {te}")
+        
+        # 如果还是没有,使用第一个可用的
+        if not transcript:
+            available_transcripts = list(transcript_list)
+            if not available_transcripts:
+                raise Exception("该视频没有可用的字幕")
+            transcript = available_transcripts[0]
+            used_language = transcript.language_code
+            logger.info(f"使用第一个可用字幕: {used_language}")
+        
+        # 获取字幕数据
+        subtitle_data = transcript.fetch()
+        
+        # 转换为时间戳格式
+        timestamps = [
+            {
+                'text': item['text'],
+                'start': item['start'],
+                'duration': item['duration']
+            }
+            for item in subtitle_data
+        ]
+        
+        logger.info(f"成功获取 {len(timestamps)} 条字幕")
+        
+        return jsonify({
+            'success': True,
+            'video_id': video_id,
+            'language': used_language,
+            'timestamps': timestamps,
+            'count': len(timestamps)
+        })
+        
+    except Exception as e:
+        logger.error(f"获取时间戳字幕失败: {e}")
         return jsonify({
             'success': False,
             'error': str(e),
@@ -307,21 +391,8 @@ if __name__ == '__main__':
     # 从环境变量获取端口,默认 5001
     port = int(os.getenv('PORT', 5001))
     
-    print("=" * 60)
-    print("🚀 YouTube 字幕服务已启动")
-    print("=" * 60)
-    print(f"📍 服务地址: http://0.0.0.0:{port}")
-    print("📖 API 文档:")
-    print("   - 健康检查: GET /health")
-    print("   - 获取字幕: GET /api/subtitles/<video_id>?lang=en")
-    print("   - 可用语言: GET /api/languages/<video_id>")
-    print("   - 获取视频URL: GET /api/video-url/<video_id>")
-    print("   - 获取视频信息(iiilab): GET /api/youtube-info/<video_id>")
-    print("=" * 60)
-    print("💡 示例:")
-    print(f"   curl http://localhost:{port}/api/subtitles/dQw4w9WgXcQ")
-    print("=" * 60)
     
     # 生产环境使用 gunicorn,开发环境使用 Flask 内置服务器
     is_production = os.getenv('RENDER', False)
     app.run(host='0.0.0.0', port=port, debug=not is_production)
+

@@ -12,8 +12,12 @@ struct ContentView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var forceLandscape = false  // 强制横屏模式
     
+    // 单词翻译弹窗状态（提升到顶层）
+    @State private var selectedWord: String?
+    @State private var wordPosition: CGRect?
+    @State private var showTranslation = false
+    
     init() {
-        print("📺 [STARTUP] ContentView init 开始: \(Date())")
     }
     
     var body: some View {
@@ -22,7 +26,6 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     // 内容区域
                     if let video = viewModel.currentVideo, video.isYouTube {
-                        let _ = print("🖥️ [ContentView] 显示播放器页面 - videoID: \(video.youtubeVideoID)")
                         VStack(spacing: 0) {
                             // 导航栏（强制横屏时隐藏）
                             if !forceLandscape {
@@ -45,8 +48,13 @@ struct ContentView: View {
                                         .frame(width: forceLandscape ? geometry.size.height * 0.6 : geometry.size.width * 0.6)
                                         
                                         // 右侧: 字幕列表 (40% 宽度)
-                                        SubtitleListView(viewModel: viewModel)
-                                            .frame(width: forceLandscape ? geometry.size.height * 0.4 : geometry.size.width * 0.4)
+                                        SubtitleListView(
+                                            viewModel: viewModel,
+                                            selectedWord: $selectedWord,
+                                            wordPosition: $wordPosition,
+                                            showTranslation: $showTranslation
+                                        )
+                                        .frame(width: forceLandscape ? geometry.size.height * 0.4 : geometry.size.width * 0.4)
                                     }
                                 } else {
                                     // 竖屏布局：视频在上，字幕在下
@@ -59,8 +67,13 @@ struct ContentView: View {
                                         .frame(height: geometry.size.height * 0.4)
                                         
                                         // 下方: 字幕列表 (60% 高度)
-                                        SubtitleListView(viewModel: viewModel)
-                                            .frame(height: geometry.size.height * 0.6)
+                                        SubtitleListView(
+                                            viewModel: viewModel,
+                                            selectedWord: $selectedWord,
+                                            wordPosition: $wordPosition,
+                                            showTranslation: $showTranslation
+                                        )
+                                        .frame(height: geometry.size.height * 0.6)
                                     }
                                 }
                             }
@@ -72,7 +85,6 @@ struct ContentView: View {
                             .frame(width: geometry.size.width, height: geometry.size.height)
                         }
                     } else {
-                        let _ = print("🖥️ [ContentView] 显示 WebView 浏览页面（全屏原生风格）")
                         // YouTube Web 浏览页面（全屏，顶部和底部贴合屏幕）
                         YouTubeWebBrowserView(viewModel: viewModel)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -98,6 +110,18 @@ struct ContentView: View {
                             }
                         }
                 )
+            }
+            .overlay {
+                // 单词翻译弹窗（全屏覆盖）
+                if showTranslation, let word = selectedWord, let position = wordPosition {
+                    WordTranslationPopup(
+                        word: word,
+                        wordPosition: position,
+                        viewModel: viewModel,
+                        isPresented: $showTranslation
+                    )
+                    .zIndex(999)  // 确保在最上层
+                }
             }
         }
         .background(Color.black)

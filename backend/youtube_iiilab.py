@@ -57,8 +57,6 @@ class IIILabYouTubeService:
         # 计算 MD5 哈希
         signature = hashlib.md5(signature_string.encode()).hexdigest()
         
-        logger.debug(f"Signature input: {signature_string}")
-        logger.debug(f"Generated signature: {signature}")
         
         return signature
     
@@ -67,7 +65,6 @@ class IIILabYouTubeService:
         elapsed = time.time() - self.last_request_time
         if elapsed < self.min_request_interval:
             wait_time = self.min_request_interval - elapsed
-            logger.info(f"⏳ 频率限制：等待 {wait_time:.1f} 秒")
             time.sleep(wait_time)
         self.last_request_time = time.time()
     
@@ -95,7 +92,6 @@ class IIILabYouTubeService:
         if cache_key in self.cache:
             cached_data, timestamp = self.cache[cache_key]
             if time.time() - timestamp < self.cache_ttl:
-                logger.info(f"💾 从缓存返回数据（video ID: {cache_key}）")
                 return cached_data
             else:
                 # 缓存过期
@@ -122,14 +118,8 @@ class IIILabYouTubeService:
                 'Accept-Language': language,  # 新 API 要求
             }
             
-            logger.info(f"Requesting video info for: {youtube_url}")
             
             # 调试：输出请求详情
-            logger.debug(f"Request URL: {self.BASE_URL}")
-            logger.debug(f"Request payload: {payload}")
-            logger.debug(f"Request headers: {headers}")
-            logger.debug(f"Timestamp: {timestamp}")
-            logger.debug(f"Signature: {signature}")
             
             # 发送请求
             response = self.session.post(
@@ -140,22 +130,17 @@ class IIILabYouTubeService:
             )
             
             # 调试：输出响应详情
-            logger.info(f"Response status code: {response.status_code}")
-            logger.debug(f"Response headers: {dict(response.headers)}")
             
             # 如果是 400 错误，记录响应内容
             if response.status_code == 400:
                 try:
                     error_data = response.json()
-                    logger.error(f"400 Error response body: {error_data}")
                 except:
-                    logger.error(f"400 Error response text: {response.text}")
             
             response.raise_for_status()
             data = response.json()
             
             # 调试：输出完整响应
-            logger.info(f"API Response keys: {list(data.keys())}")
             
             # API 直接返回数据，没有 code/msg 包装
             if 'text' in data or 'medias' in data:
@@ -163,7 +148,6 @@ class IIILabYouTubeService:
                 
                 # 3. 保存到缓存
                 self.cache[cache_key] = (result, time.time())
-                logger.info(f"💾 数据已缓存（TTL: {self.cache_ttl}秒）")
                 
                 return result
             else:
@@ -172,10 +156,8 @@ class IIILabYouTubeService:
                 raise Exception(f"API 返回错误: {error_msg}")
                 
         except requests.exceptions.RequestException as e:
-            logger.error(f"请求失败: {str(e)}")
             raise Exception(f"网络请求失败: {str(e)}")
         except Exception as e:
-            logger.error(f"解析失败: {str(e)}")
             raise
     
     def _parse_response(self, data: Dict) -> Dict:
@@ -295,15 +277,5 @@ if __name__ == '__main__':
     
     try:
         result = service.extract_video_info(test_url)
-        print("\n" + "="*60)
-        print("视频信息提取成功!")
-        print("="*60)
-        print(f"标题: {result['title']}")
-        print(f"时长: {result['duration']} 秒")
-        print(f"\n可用格式 ({len(result['formats'])} 个):")
         for fmt in result['formats'][:5]:  # 只显示前5个
-            print(f"  - {fmt['quality']}p ({fmt['format']}) - 音频: {'有' if fmt['has_audio'] else '无'}")
-        print(f"\n字幕 ({len(result['subtitles'])} 个)")
-        print("="*60)
     except Exception as e:
-        print(f"\n错误: {str(e)}")
