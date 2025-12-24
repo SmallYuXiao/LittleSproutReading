@@ -506,6 +506,34 @@ struct YouTubeWebViewWithControls: UIViewRepresentable {
                 self.parent.canGoForward = webView.canGoForward
             }
             
+            // 检测是否在Subscriptions页面且需要登录
+            if let url = webView.url?.absoluteString,
+               url.contains("/feed/subscriptions") {
+                
+                // 注入JavaScript检测是否显示登录提示
+                let checkLoginScript = """
+                (function() {
+                    // 检查是否有登录按钮或登录提示
+                    const signInButton = document.querySelector('a[href*="accounts.google.com"]');
+                    const loginPrompt = document.querySelector('ytd-message-renderer');
+                    
+                    // 如果找到登录相关元素,返回true
+                    return !!(signInButton || loginPrompt);
+                })();
+                """
+                
+                webView.evaluateJavaScript(checkLoginScript) { result, error in
+                    if let needsLogin = result as? Bool, needsLogin {
+                        // 需要登录,跳转到YouTube首页
+                        DispatchQueue.main.async {
+                            if let homeURL = URL(string: "https://www.youtube.com") {
+                                webView.load(URLRequest(url: homeURL))
+                            }
+                        }
+                    }
+                }
+            }
+            
             
             // 注入脚本:禁用列表/首页内的任何视频播放(避免首页播放)
             let disableInlinePlayScript = """
