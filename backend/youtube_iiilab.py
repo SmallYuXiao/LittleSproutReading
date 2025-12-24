@@ -131,11 +131,13 @@ class IIILabYouTubeService:
             
             # 调试：输出响应详情
             
-            # 如果是 400 错误，记录响应内容
+            # 如果是 400 错误,记录响应内容
             if response.status_code == 400:
                 try:
                     error_data = response.json()
+                    logger.error(f"API 400 错误: {error_data}")
                 except:
+                    pass
             
             response.raise_for_status()
             data = response.json()
@@ -277,5 +279,10 @@ if __name__ == '__main__':
     
     try:
         result = service.extract_video_info(test_url)
+        logger.info(f"标题: {result['title']}")
+        logger.info(f"找到 {len(result['formats'])} 个视频格式")
         for fmt in result['formats'][:5]:  # 只显示前5个
+            logger.info(f"  - {fmt['quality']} ({fmt['format']})")
     except Exception as e:
+        logger.error(f"测试失败: {e}")
+
